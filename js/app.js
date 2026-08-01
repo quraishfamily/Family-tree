@@ -186,6 +186,10 @@ document.getElementById("openAddFatherBtn").addEventListener("click", ()=>{
   closeOverlay("detailOverlay");
   openAddRelative("father", currentDetailMember);
 });
+document.getElementById("openChainBtn").addEventListener("click", ()=>{
+  closeOverlay("detailOverlay");
+  openChainModal(currentDetailMember);
+});
 
 /* ---------------- إضافة فرد جديد (يذهب لمراجعة الأدمن) ---------------- */
 let addMode = "child";       // 'child' | 'sibling' | 'father'
@@ -272,6 +276,126 @@ document.getElementById("addForm").addEventListener("submit", async (e)=>{
   }finally{
     submitBtn.disabled = false;
     submitBtn.textContent = "إرسال للمراجعة";
+  }
+});
+
+/* ---------------- ربط قريب عبر جد مشترك (سلسلة كاملة) ---------------- */
+let chainAnchorMember = null;
+
+function openChainModal(member){
+  ensureIdentity(()=>{
+    chainAnchorMember = member;
+    document.getElementById("chainAnchorHint").textContent = `ابدأ من: ${member.firstName}`;
+    document.getElementById("chainSteps").innerHTML = "";
+    document.getElementById("chainMsg").innerHTML = "";
+    addChainStep();
+    openOverlay("chainOverlay");
+  });
+}
+
+function currentPrevLabel(stepEl){
+  const steps = [...document.querySelectorAll("#chainSteps .chain-step")];
+  const idx = steps.indexOf(stepEl);
+  if(idx <= 0) return chainAnchorMember.firstName;
+  const prevInput = steps[idx-1].querySelector(".chainFirstName");
+  return prevInput.value.trim() || "(الحلقة السابقة)";
+}
+
+function refreshPrevLabels(){
+  document.querySelectorAll("#chainSteps .chain-step").forEach(stepEl=>{
+    const label = currentPrevLabel(stepEl);
+    stepEl.querySelectorAll(".prevLabelText").forEach(el => el.textContent = label);
+  });
+}
+
+function addChainStep(){
+  const container = document.getElementById("chainSteps");
+  const div = document.createElement("div");
+  div.className = "card chain-step";
+  div.style.marginBottom = "12px";
+  div.innerHTML = `
+    <div class="field">
+      <label>هذا الشخص هو:</label>
+      <select class="chainRelation">
+        <option value="father">أب لـ <span class="prevLabelText"></span></option>
+        <option value="child">ابن/ابنة لـ <span class="prevLabelText"></span></option>
+      </select>
+    </div>
+    <div class="field"><label>الاسم الأول</label><input type="text" class="chainFirstName"></div>
+    <div class="field"><label>الاسم الرباعي</label><input type="text" class="chainFullName"></div>
+    <div class="field">
+      <label>الحالة</label>
+      <select class="chainStatus">
+        <option value="alive">على قيد الحياة</option>
+        <option value="deceased">متوفى</option>
+      </select>
+    </div>
+    <div class="field"><label>الزوج/الزوجة (اختياري)</label><input type="text" class="chainSpouse"></div>
+    <button type="button" class="btn btn-danger removeStepBtn">حذف هذه الحلقة</button>
+  `;
+  container.appendChild(div);
+  const firstNameInput = div.querySelector(".chainFirstName");
+  firstNameInput.addEventListener("input", ()=>{
+    firstNameInput.value = firstNameInput.value.replace(/\s+/g, "");
+    refreshPrevLabels();
+  });
+  div.querySelector(".removeStepBtn").addEventListener("click", ()=>{
+    div.remove();
+    refreshPrevLabels();
+  });
+  refreshPrevLabels();
+}
+
+document.getElementById("addChainStepBtn").addEventListener("click", addChainStep);
+
+document.getElementById("submitChainBtn").addEventListener("click", async ()=>{
+  const msgEl = document.getElementById("chainMsg");
+  msgEl.innerHTML = "";
+  const stepEls = [...document.querySelectorAll("#chainSteps .chain-step")];
+  if(stepEls.length === 0){
+    msgEl.innerHTML = `<div class="msg-err">أضف حلقة واحدة على الأقل.</div>`;
+    return;
+  }
+  const steps = [];
+  for(const el of stepEls){
+    const firstName = el.querySelector(".chainFirstName").value.trim();
+    const fullName = el.querySelector(".chainFullName").value.trim();
+    if(!firstName || !fullName){
+      msgEl.innerHTML = `<div class="msg-err">أكمل الاسم الأول والرباعي لكل حلقة قبل الإرسال.</div>`;
+      return;
+    }
+    steps.push({
+      relation: el.querySelector(".chainRelation").value,
+      firstName, fullName,
+      status: el.querySelector(".chainStatus").value,
+      spouseName: el.querySelector(".chainSpouse").value.trim() || null,
+    });
+  }
+
+  const identity = getIdentity();
+  if(!identity){ ensureIdentity(()=>{}); return; }
+
+  const submitBtn = document.getElementById("submitChainBtn");
+  submitBtn.disabled = true;
+  submitBtn.textContent = "جارٍ الإرسال...";
+  try{
+    await addDoc(collection(db, "pendingSubmissions"), {
+      type: "chain",
+      anchorId: chainAnchorMember.id,
+      anchorFirstName: chainAnchorMember.firstName,
+      steps,
+      submitterName: identity.name,
+      submitterEmail: identity.email,
+      submitterPhone: identity.phone,
+      submittedAt: serverTimestamp(),
+    });
+    msgEl.innerHTML = `<div class="msg-ok">تم إرسال السلسلة كاملة، بانتظار مراجعة المسؤول.</div>`;
+    setTimeout(()=> closeOverlay("chainOverlay"), 1600);
+  }catch(err){
+    msgEl.innerHTML = `<div class="msg-err">حدث خطأ: ${escapeHtml(err.message)}</div>`;
+  }finally{
+    submitBtn.disabled = false;
+    submitBtn.textContent = "إرسال السلسلة كاملة للمراجعة";
   }
 });
 
