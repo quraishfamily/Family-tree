@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لوحة تحكم الأدمن — شجرة العائلة</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .admin-wrap{ max-width:880px; margin:0 auto; padding:30px 18px 80px; }
+  .tabs{ display:flex; gap:8px; margin-bottom:24px; flex-wrap:wrap; }
+  .tab-btn{ background:var(--navy-panel); border:1px solid var(--navy-line); color:var(--muted);
+    padding:10px 18px; border-radius:10px; font-size:14px; }
+  .tab-btn.active{ color:var(--gold-light); border-color:var(--gold-dim); }
+  .panel{ display:none; }
+  .panel.active{ display:block; }
+  .card{ background:var(--navy-panel); border:1px solid var(--navy-line); border-radius:var(--radius);
+    padding:18px; margin-bottom:14px; }
+  .card-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap; }
+  .card-head h4{ margin:0 0 4px; font-family:'Aref Ruqaa', serif; color:var(--gold-light); font-size:20px; }
+  .card-meta{ color:var(--muted); font-size:12.5px; line-height:1.9; }
+  .card-actions{ display:flex; gap:8px; margin-top:12px; }
+  .thumb{ width:52px; height:52px; border-radius:50%; object-fit:cover; border:2px solid var(--gold); }
+  .table{ width:100%; border-collapse:collapse; font-size:14px; }
+  .table th, .table td{ text-align:right; padding:10px; border-bottom:1px solid var(--navy-line); }
+  .table th{ color:var(--muted); font-weight:500; }
+  .login-wrap{ max-width:380px; margin:80px auto; }
+</style>
+</head>
+<body>
+
+  <header class="charter-header">
+    <div class="charter-eyebrow">لوحة الإدارة</div>
+    <h1 class="charter-title">مراجعة شجرة العائلة</h1>
+  </header>
+
+  <div id="loginView" class="login-wrap">
+    <div class="card">
+      <h3 style="font-family:'Aref Ruqaa',serif;color:var(--gold-light);margin-top:0;">تسجيل دخول المسؤول</h3>
+      <form id="loginForm">
+        <div class="field"><label>البريد الإلكتروني</label><input type="email" id="loginEmail" required></div>
+        <div class="field"><label>كلمة السر</label><input type="password" id="loginPassword" required></div>
+        <div class="form-actions"><button class="btn btn-solid" type="submit">دخول</button></div>
+        <div id="loginMsg"></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="dashboardView" class="admin-wrap" style="display:none;">
+    <div class="toolbar" style="justify-content:space-between;">
+      <span style="color:var(--muted);font-size:13px;" id="whoAmI"></span>
+      <button class="btn btn-ghost" id="logoutBtn">تسجيل الخروج</button>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="pending">طلبات الإضافة <span id="pendingCount"></span></button>
+      <button class="tab-btn" data-tab="manage">إدارة الشجرة</button>
+      <button class="tab-btn" data-tab="addRoot">إضافة فرد مباشرة</button>
+    </div>
+
+    <div class="panel active" id="panel-pending"></div>
+
+    <div class="panel" id="panel-manage">
+      <div id="manageList"></div>
+    </div>
+
+    <div class="panel" id="panel-addRoot">
+      <div class="card">
+        <h4>إضافة فرد مباشرة إلى الشجرة (بدون مراجعة)</h4>
+        <p class="card-meta">استخدم هذا لإضافة الجد الأول للشجرة، أو أي بيانات أولية تملكها جاهزة.</p>
+        <form id="directAddForm">
+          <div class="field">
+            <label>الأب/الأم في الشجرة (اختياري — اتركه فارغاً لإنشاء جذر جديد)</label>
+            <select id="directParent"><option value="">— بدون (جذر الشجرة) —</option></select>
+          </div>
+          <div class="field"><label>الاسم الأول</label><input type="text" id="directFirstName" required></div>
+          <div class="field"><label>الاسم الرباعي كامل</label><input type="text" id="directFullName" required></div>
+          <div class="field">
+            <label>الحالة</label>
+            <select id="directStatus">
+              <option value="alive">على قيد الحياة</option>
+              <option value="deceased">متوفى</option>
+            </select>
+          </div>
+          <div class="field"><label>اسم الزوج/الزوجة (اختياري)</label><input type="text" id="directSpouse"></div>
+          <div class="field" id="photoFieldWrap" style="display:none;"><label>صورة (اختياري)</label><input type="file" id="directPhoto" accept="image/*"></div>
+          <p class="card-meta" id="photoDisabledNote">📷 رفع الصور غير مفعّل حالياً، بيتم تفعيله لاحقاً بعد ترقية خطة Firebase.</p>
+          <div class="form-actions"><button class="btn btn-solid" type="submit">إضافة إلى الشجرة</button></div>
+          <div id="directAddMsg"></div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- نافذة تعديل فرد -->
+  <div class="overlay hidden" id="editOverlay">
+    <div class="modal">
+      <button class="close" data-close="editOverlay">×</button>
+      <h3>تعديل البيانات</h3>
+      <form id="editForm">
+        <input type="hidden" id="editId">
+        <div class="field"><label>الاسم الأول</label><input type="text" id="editFirstName" required></div>
+        <div class="field"><label>الاسم الرباعي</label><input type="text" id="editFullName" required></div>
+        <div class="field">
+          <label>الحالة</label>
+          <select id="editStatus">
+            <option value="alive">على قيد الحياة</option>
+            <option value="deceased">متوفى</option>
+          </select>
+        </div>
+        <div class="field"><label>اسم الزوج/الزوجة (اختياري)</label><input type="text" id="editSpouse"></div>
+        <div class="field">
+          <label>الأب/الأم في الشجرة</label>
+          <select id="editParent"><option value="">— بدون (جذر الشجرة) —</option></select>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-solid">حفظ التعديلات</button>
+        </div>
+        <div id="editMsg"></div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module" src="js/admin.js"></script>
+</body>
+</html>

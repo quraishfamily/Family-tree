@@ -1,0 +1,18 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // الشجرة المعتمدة: يقرأها الجميع، ولا يكتب/يعدّل/يحذف فيها إلا الأدمن المسجّل دخوله
+    match /members/{memberId} {
+      allow read: if true;
+      allow create, update, delete: if request.auth != null;
+    }
+
+    // طلبات الإضافة: أي شخص يقدر يرسل طلب (بدون تسجيل دخول حقيقي)
+    // لكن لا أحد يقدر يشوف قائمة الطلبات أو يوافق/يرفض إلا الأدمن
+    match /pendingSubmissions/{subId} {
+      allow create: if true;
+      allow read, update, delete: if request.auth != null;
+    }
+  }
+}

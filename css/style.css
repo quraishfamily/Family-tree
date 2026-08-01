@@ -1,0 +1,381 @@
+/* ===========================================================
+   شجرة العائلة — التصميم البصري
+   لوحة الألوان: كحلي عميق + ذهبي + عاجي
+   الخط الظاهر: Aref Ruqaa (عناوين وأسماء) / Tajawal (نصوص وواجهة)
+   =========================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Tajawal:wght@300;400;500;700;900&display=swap');
+
+:root{
+  --navy-deep:   #0B1120;
+  --navy-panel:  #141B2E;
+  --navy-panel-2:#1B2439;
+  --navy-line:   #2A3550;
+  --gold:        #C9A227;
+  --gold-light:  #E8C766;
+  --gold-dim:    #8A7326;
+  --ivory:       #F3EFE4;
+  --muted:       #8C93A6;
+  --danger:      #C1554A;
+  --ok:          #4E9C6F;
+  --radius:      14px;
+  --shadow:      0 10px 30px rgba(0,0,0,.45);
+}
+
+*{ box-sizing:border-box; }
+
+html,body{
+  margin:0; padding:0;
+  background:var(--navy-deep);
+  color:var(--ivory);
+  font-family:'Tajawal', sans-serif;
+  direction:rtl;
+  min-height:100vh;
+}
+
+body{
+  background-image:
+    radial-gradient(circle at 15% 10%, rgba(201,162,39,.06), transparent 40%),
+    radial-gradient(circle at 85% 90%, rgba(201,162,39,.05), transparent 40%);
+  background-attachment:fixed;
+}
+
+a{ color:inherit; }
+button{ font-family:inherit; cursor:pointer; }
+
+/* ---------- الترويسة / إطار النسب ---------- */
+.charter-header{
+  position:relative;
+  text-align:center;
+  padding:56px 20px 40px;
+  border-bottom:1px solid var(--navy-line);
+  overflow:hidden;
+}
+.charter-header::before,
+.charter-header::after{
+  content:'';
+  position:absolute;
+  top:18px; bottom:18px;
+  inset-inline-start:18px; inset-inline-end:18px;
+  border:1px solid var(--gold-dim);
+  border-radius:2px;
+  pointer-events:none;
+  opacity:.55;
+}
+.charter-header::after{
+  top:26px; bottom:26px;
+  inset-inline-start:26px; inset-inline-end:26px;
+}
+.charter-eyebrow{
+  font-size:13px;
+  letter-spacing:.35em;
+  color:var(--gold);
+  text-transform:uppercase;
+  margin-bottom:14px;
+  font-weight:700;
+}
+.charter-title{
+  font-family:'Aref Ruqaa', serif;
+  font-size:clamp(34px,6vw,58px);
+  color:var(--gold-light);
+  margin:0;
+  line-height:1.3;
+}
+.charter-sub{
+  color:var(--muted);
+  margin-top:10px;
+  font-size:15px;
+}
+.identity-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  margin-top:22px;
+  background:var(--navy-panel);
+  border:1px solid var(--navy-line);
+  padding:8px 16px;
+  border-radius:999px;
+  font-size:14px;
+  color:var(--ivory);
+}
+.identity-chip button{
+  background:none;
+  border:none;
+  color:var(--gold);
+  font-size:13px;
+  text-decoration:underline;
+  padding:0;
+}
+
+/* ---------- شريط أدوات ---------- */
+.toolbar{
+  display:flex;
+  justify-content:center;
+  gap:10px;
+  padding:18px;
+  flex-wrap:wrap;
+}
+.btn{
+  border:1px solid var(--gold-dim);
+  background:transparent;
+  color:var(--gold-light);
+  padding:10px 20px;
+  border-radius:10px;
+  font-size:14px;
+  font-weight:500;
+  transition:.15s ease;
+}
+.btn:hover{ background:rgba(201,162,39,.1); border-color:var(--gold); }
+.btn-solid{
+  background:linear-gradient(180deg,var(--gold-light),var(--gold));
+  color:#1a1406;
+  border:none;
+  font-weight:700;
+}
+.btn-solid:hover{ filter:brightness(1.06); }
+.btn-danger{ border-color:var(--danger); color:#f0a89f; }
+.btn-danger:hover{ background:rgba(193,85,74,.12); }
+.btn-ghost{ border-color:var(--navy-line); color:var(--muted); }
+
+/* ---------- حاوية الشجرة ---------- */
+.tree-wrap{
+  overflow-x:auto;
+  padding:40px 20px 100px;
+}
+.tree, .tree ul{
+  list-style:none;
+  margin:0; padding:0;
+  display:flex;
+  justify-content:center;
+}
+.tree{ min-width:max-content; margin:0 auto; }
+.tree ul{
+  padding-top:44px;
+  position:relative;
+}
+.tree li{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  position:relative;
+  padding:44px 18px 0;
+}
+.tree li::before,
+.tree li::after{
+  content:'';
+  position:absolute;
+  top:0;
+  inset-inline-start:50%;
+  width:50%;
+  height:44px;
+  border-inline-start:2px solid var(--gold-dim);
+}
+.tree li::after{
+  inset-inline-start:0;
+  border-inline-start:none;
+  border-inline-end:2px solid var(--gold-dim);
+}
+.tree li:only-child::before,
+.tree li:only-child::after{ display:none; }
+.tree li:only-child{ padding-top:0; }
+.tree li:first-child::before,
+.tree li:last-child::after{ border-color:transparent; }
+.tree li:last-child::before{
+  border-inline-end:2px solid var(--gold-dim);
+  border-start-end-radius:8px;
+}
+.tree li:first-child::after{
+  border-start-start-radius:8px;
+}
+.tree > li{ padding-top:0; }
+.tree > li::before, .tree > li::after{ display:none; }
+.tree ul::before{
+  content:'';
+  position:absolute;
+  top:0;
+  inset-inline-start:50%;
+  height:44px;
+  border-inline-start:2px solid var(--gold-dim);
+}
+
+/* ---------- بطاقة الشخص ---------- */
+.node{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:8px;
+  background:var(--navy-panel);
+  border:1px solid var(--navy-line);
+  border-radius:var(--radius);
+  padding:14px 18px 12px;
+  min-width:120px;
+  cursor:pointer;
+  transition:.15s ease;
+  box-shadow:var(--shadow);
+}
+.node:hover{
+  border-color:var(--gold-dim);
+  transform:translateY(-2px);
+}
+.node-photo{
+  width:56px; height:56px;
+  border-radius:50%;
+  overflow:hidden;
+  background:var(--navy-panel-2);
+  border:2px solid var(--gold);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-family:'Aref Ruqaa', serif;
+  font-size:22px;
+  color:var(--gold-light);
+}
+.node-photo img{ width:100%; height:100%; object-fit:cover; }
+.node.deceased .node-photo{ border-color:var(--muted); filter:grayscale(.4); }
+.node-name{
+  font-family:'Aref Ruqaa', serif;
+  font-size:18px;
+  color:var(--ivory);
+}
+.node-status-dot{
+  width:8px; height:8px; border-radius:50%;
+  background:var(--gold);
+  position:absolute;
+  top:10px;
+  inset-inline-end:10px;
+}
+.node.deceased .node-status-dot{ background:var(--muted); }
+.node-add{
+  position:absolute;
+  bottom:-12px;
+  inset-inline-start:50%;
+  transform:translateX(50%);
+  width:26px; height:26px;
+  border-radius:50%;
+  background:var(--gold);
+  color:#1a1406;
+  border:2px solid var(--navy-deep);
+  font-size:16px;
+  line-height:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:900;
+}
+.node-add:hover{ filter:brightness(1.1); }
+.node-collapse{
+  position:absolute;
+  bottom:-30px;
+  inset-inline-start:50%;
+  transform:translateX(50%);
+  background:none;
+  border:none;
+  color:var(--muted);
+  font-size:12px;
+}
+
+.empty-state{
+  text-align:center;
+  color:var(--muted);
+  padding:80px 20px;
+}
+.empty-state h3{
+  font-family:'Aref Ruqaa', serif;
+  color:var(--gold-light);
+  font-size:26px;
+}
+
+/* ---------- نافذة منبثقة ---------- */
+.overlay{
+  position:fixed; inset:0;
+  background:rgba(6,9,17,.72);
+  backdrop-filter:blur(2px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  z-index:50;
+}
+.overlay.hidden{ display:none; }
+.modal{
+  background:var(--navy-panel);
+  border:1px solid var(--navy-line);
+  border-radius:var(--radius);
+  max-width:460px;
+  width:100%;
+  max-height:88vh;
+  overflow-y:auto;
+  padding:26px;
+  box-shadow:var(--shadow);
+}
+.modal h3{
+  font-family:'Aref Ruqaa', serif;
+  color:var(--gold-light);
+  font-size:24px;
+  margin:0 0 6px;
+}
+.modal p.hint{ color:var(--muted); font-size:13px; margin-top:0; margin-bottom:18px; }
+.modal .close{
+  float:left;
+  background:none; border:none;
+  color:var(--muted);
+  font-size:20px;
+}
+.field{ margin-bottom:14px; }
+.field label{
+  display:block;
+  font-size:13px;
+  color:var(--muted);
+  margin-bottom:6px;
+}
+.field input[type=text],
+.field input[type=email],
+.field input[type=tel],
+.field input[type=password],
+.field select{
+  width:100%;
+  background:var(--navy-deep);
+  border:1px solid var(--navy-line);
+  color:var(--ivory);
+  border-radius:8px;
+  padding:10px 12px;
+  font-size:14px;
+  font-family:inherit;
+}
+.field input:focus, .field select:focus{
+  outline:2px solid var(--gold-dim);
+  outline-offset:1px;
+}
+.field input[type=file]{ color:var(--muted); font-size:13px; }
+.detail-row{
+  display:flex;
+  justify-content:space-between;
+  padding:10px 0;
+  border-bottom:1px solid var(--navy-line);
+  font-size:14px;
+}
+.detail-row span:first-child{ color:var(--muted); }
+.detail-row span:last-child{ color:var(--ivory); font-weight:500; }
+.form-actions{
+  display:flex;
+  gap:10px;
+  margin-top:18px;
+}
+.form-actions .btn{ flex:1; }
+.msg-ok{ color:var(--ok); font-size:13px; margin-top:10px; }
+.msg-err{ color:var(--danger); font-size:13px; margin-top:10px; }
+
+footer.site-footer{
+  text-align:center;
+  color:var(--muted);
+  font-size:12px;
+  padding:24px;
+  border-top:1px solid var(--navy-line);
+}
+
+@media (max-width:600px){
+  .charter-title{ font-size:30px; }
+  .node{ min-width:96px; padding:10px 12px 10px; }
+  .node-photo{ width:46px; height:46px; }
+}
