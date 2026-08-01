@@ -64,6 +64,9 @@
         <button class="btn" id="openAddSiblingBtn">إضافة أخ / أخت</button>
         <button class="btn" id="openAddFatherBtn">إضافة أب</button>
       </div>
+      <div class="form-actions">
+        <button class="btn btn-ghost" id="openChainBtn" style="width:100%;">ربط قريب عبر جد مشترك (سلسلة كاملة)</button>
+      </div>
     </div>
   </div>
 
@@ -103,6 +106,25 @@
         </div>
         <div id="addFormMsg"></div>
       </form>
+    </div>
+  </div>
+
+  <!-- نافذة ربط قريب عبر جد مشترك (سلسلة كاملة) -->
+  <div class="overlay hidden" id="chainOverlay">
+    <div class="modal" style="max-width:560px;">
+      <button class="close" data-close="chainOverlay">×</button>
+      <h3>ربط قريب عبر جد مشترك</h3>
+      <p class="hint" id="chainAnchorHint">ابدأ من: —</p>
+      <p class="hint" style="margin-top:-10px;">
+        استخدم هذا لما يكون القريب اللي تبي تضيفه غير متصل مباشرة بأحد الموجودين بالشجرة.
+        ابنِ الحلقات الناقصة بالترتيب (مثال: أب، ثم ابنه الثاني، ثم القريب المطلوب) وأرسلها كلها دفعة وحدة.
+      </p>
+      <div id="chainSteps"></div>
+      <button type="button" class="btn" id="addChainStepBtn" style="width:100%;">+ إضافة حلقة جديدة</button>
+      <div class="form-actions">
+        <button type="button" class="btn btn-solid" id="submitChainBtn">إرسال السلسلة كاملة للمراجعة</button>
+      </div>
+      <div id="chainMsg"></div>
     </div>
   </div>
 
