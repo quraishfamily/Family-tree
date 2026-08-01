@@ -39,7 +39,14 @@ onAuthStateChanged(auth, (user)=>{
   }
 });
 
-/* ---------------- التبويبات ---------------- */
+/* ---------------- تقييد حقل "الاسم الأول" بكلمة واحدة فقط ---------------- */
+function restrictToSingleWord(input){
+  input.addEventListener("input", ()=>{
+    input.value = input.value.replace(/\s+/g, "");
+  });
+}
+restrictToSingleWord(document.getElementById("directFirstName"));
+restrictToSingleWord(document.getElementById("editFirstName"));
 document.querySelectorAll(".tab-btn").forEach(btn=>{
   btn.addEventListener("click", ()=>{
     document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
