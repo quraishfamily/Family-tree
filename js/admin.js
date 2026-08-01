@@ -96,6 +96,43 @@ onSnapshot(collection(db, "pendingSubmissions"), (snap)=>{
 
   panelPending.innerHTML = "";
   items.forEach(item=>{
+    if(item.type === "chain"){
+      const stepsHtml = item.steps.map((s, i)=>{
+        const relLabel = s.relation === "father" ? "أب لـ" : "ابن/ابنة لـ";
+        const prevName = i === 0 ? item.anchorFirstName : item.steps[i-1].firstName;
+        return `
+          <div style="padding:8px 0;border-bottom:1px solid var(--navy-line);font-size:14px;">
+            <strong>${escapeHtml(s.firstName)}</strong> (${escapeHtml(s.fullName || "—")})
+            — ${relLabel} <em>${escapeHtml(prevName || "—")}</em>
+            ${s.status === "deceased" ? " · متوفى" : ""}
+            ${s.spouseName ? " · الزوج/الزوجة: " + escapeHtml(s.spouseName) : ""}
+          </div>`;
+      }).join("");
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <div class="card-head">
+          <div>
+            <h4>سلسلة ربط جديدة (${item.steps.length} ${item.steps.length === 1 ? "حلقة" : "حلقات"})</h4>
+            <div class="card-meta">تبدأ من الشخص الموجود بالشجرة: ${escapeHtml(item.anchorFirstName || "—")}</div>
+          </div>
+          <div class="card-meta">
+            مُقدّم الطلب:<br>
+            ${escapeHtml(item.submitterName || "")}<br>
+            ${escapeHtml(item.submitterEmail || "")}<br>
+            ${escapeHtml(item.submitterPhone || "")}
+          </div>
+        </div>
+        <div style="margin-top:10px;">${stepsHtml}</div>
+        <div class="card-actions">
+          <button class="btn btn-solid" data-approve-chain="${item.id}">قبول ونشر السلسلة كاملة</button>
+          <button class="btn btn-danger" data-reject="${item.id}">رفض</button>
+        </div>
+      `;
+      panelPending.appendChild(card);
+      return;
+    }
+
     let relationLine;
     if(item.type === "father"){
       relationLine = `سيُضاف كأب لـ: ${escapeHtml(item.targetChildFirstName || "—")} (وسيصبح جذراً جديداً في هذا الفرع)`;
@@ -182,6 +219,44 @@ onSnapshot(collection(db, "pendingSubmissions"), (snap)=>{
     btn.addEventListener("click", async ()=>{
       if(!confirm("متأكد من رفض هذا الطلب؟ لا يمكن التراجع.")) return;
       await deleteDoc(doc(db, "pendingSubmissions", btn.dataset.reject));
+    });
+  });
+
+  panelPending.querySelectorAll("[data-approve-chain]").forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
+      const id = btn.dataset.approveChain;
+      const item = items.find(i=>i.id === id);
+      btn.disabled = true; btn.textContent = "جارٍ النشر...";
+      try{
+        let prevId = item.anchorId;
+        for(const step of item.steps){
+          const baseFields = {
+            firstName: step.firstName,
+            fullName: step.fullName,
+            status: step.status,
+            spouseName: step.spouseName || null,
+            photoURL: null,
+            createdAt: serverTimestamp(),
+            approvedBy: auth.currentUser.email,
+          };
+          if(step.relation === "father"){
+            const prevMember = membersFlat.find(m => m.id === prevId);
+            if(prevMember && prevMember.parentId){
+              throw new Error(`"${prevMember.firstName}" صار له أب مسجّل بالفعل في الشجرة، ما نقدر نكمل هذه السلسلة تلقائياً. ارفض الطلب وتواصل مع مقدّمه لإعادة الإرسال.`);
+            }
+            const newRef = await addDoc(collection(db, "members"), { ...baseFields, parentId: null });
+            await updateDoc(doc(db, "members", prevId), { parentId: newRef.id });
+            prevId = newRef.id;
+          } else {
+            const newRef = await addDoc(collection(db, "members"), { ...baseFields, parentId: prevId });
+            prevId = newRef.id;
+          }
+        }
+        await deleteDoc(doc(db, "pendingSubmissions", id));
+      }catch(err){
+        alert("حدث خطأ: " + err.message);
+        btn.disabled = false; btn.textContent = "قبول ونشر السلسلة كاملة";
+      }
     });
   });
 });
