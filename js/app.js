@@ -275,5 +275,13 @@ document.getElementById("addForm").addEventListener("submit", async (e)=>{
   }
 });
 
+/* ---------------- تقييد حقل "الاسم الأول" بكلمة واحدة فقط ---------------- */
+function restrictToSingleWord(input){
+  input.addEventListener("input", ()=>{
+    input.value = input.value.replace(/\s+/g, "");
+  });
+}
+restrictToSingleWord(document.getElementById("newFirstName"));
+
 /* ---------------- تشغيل أولي ---------------- */
 renderIdentityChip();
