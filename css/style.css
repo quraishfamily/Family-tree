@@ -165,21 +165,22 @@ button{ font-family:inherit; cursor:pointer; }
   content:'';
   position:absolute;
   top:0;
-  inset-inline-start:50%;
+  inset-inline-start:0;
   width:50%;
   height:44px;
-  border-inline-start:2px solid var(--gold-dim);
+  border-block-start:2px solid var(--gold-dim);
 }
 .tree li::after{
-  inset-inline-start:0;
-  border-inline-start:none;
-  border-inline-end:2px solid var(--gold-dim);
+  inset-inline-start:50%;
+  border-inline-start:2px solid var(--gold-dim);
 }
 .tree li:only-child::before,
 .tree li:only-child::after{ display:none; }
 .tree li:only-child{ padding-top:0; }
 .tree li:first-child::before,
-.tree li:last-child::after{ border-color:transparent; }
+.tree li:last-child::after{
+  border:0 none;
+}
 .tree li:last-child::before{
   border-inline-end:2px solid var(--gold-dim);
   border-start-end-radius:8px;
@@ -269,113 +270,3 @@ button{ font-family:inherit; cursor:pointer; }
   bottom:-30px;
   inset-inline-start:50%;
   transform:translateX(50%);
-  background:none;
-  border:none;
-  color:var(--muted);
-  font-size:12px;
-}
-
-.empty-state{
-  text-align:center;
-  color:var(--muted);
-  padding:80px 20px;
-}
-.empty-state h3{
-  font-family:'Aref Ruqaa', serif;
-  color:var(--gold-light);
-  font-size:26px;
-}
-
-/* ---------- نافذة منبثقة ---------- */
-.overlay{
-  position:fixed; inset:0;
-  background:rgba(6,9,17,.72);
-  backdrop-filter:blur(2px);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:20px;
-  z-index:50;
-}
-.overlay.hidden{ display:none; }
-.modal{
-  background:var(--navy-panel);
-  border:1px solid var(--navy-line);
-  border-radius:var(--radius);
-  max-width:460px;
-  width:100%;
-  max-height:88vh;
-  overflow-y:auto;
-  padding:26px;
-  box-shadow:var(--shadow);
-}
-.modal h3{
-  font-family:'Aref Ruqaa', serif;
-  color:var(--gold-light);
-  font-size:24px;
-  margin:0 0 6px;
-}
-.modal p.hint{ color:var(--muted); font-size:13px; margin-top:0; margin-bottom:18px; }
-.modal .close{
-  float:left;
-  background:none; border:none;
-  color:var(--muted);
-  font-size:20px;
-}
-.field{ margin-bottom:14px; }
-.field label{
-  display:block;
-  font-size:13px;
-  color:var(--muted);
-  margin-bottom:6px;
-}
-.field input[type=text],
-.field input[type=email],
-.field input[type=tel],
-.field input[type=password],
-.field select{
-  width:100%;
-  background:var(--navy-deep);
-  border:1px solid var(--navy-line);
-  color:var(--ivory);
-  border-radius:8px;
-  padding:10px 12px;
-  font-size:14px;
-  font-family:inherit;
-}
-.field input:focus, .field select:focus{
-  outline:2px solid var(--gold-dim);
-  outline-offset:1px;
-}
-.field input[type=file]{ color:var(--muted); font-size:13px; }
-.detail-row{
-  display:flex;
-  justify-content:space-between;
-  padding:10px 0;
-  border-bottom:1px solid var(--navy-line);
-  font-size:14px;
-}
-.detail-row span:first-child{ color:var(--muted); }
-.detail-row span:last-child{ color:var(--ivory); font-weight:500; }
-.form-actions{
-  display:flex;
-  gap:10px;
-  margin-top:18px;
-}
-.form-actions .btn{ flex:1; }
-.msg-ok{ color:var(--ok); font-size:13px; margin-top:10px; }
-.msg-err{ color:var(--danger); font-size:13px; margin-top:10px; }
-
-footer.site-footer{
-  text-align:center;
-  color:var(--muted);
-  font-size:12px;
-  padding:24px;
-  border-top:1px solid var(--navy-line);
-}
-
-@media (max-width:600px){
-  .charter-title{ font-size:30px; }
-  .node{ min-width:96px; padding:10px 12px 10px; }
-  .node-photo{ width:46px; height:46px; }
-}
