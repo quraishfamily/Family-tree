@@ -145,6 +145,38 @@ onSnapshot(collection(db, "pendingSubmissions"), (snap)=>{
       return;
     }
 
+    if(item.type === "correction"){
+      const targetStillExists = membersFlat.some(m => m.id === item.targetMemberId);
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <div class="card-head">
+          <div>
+            <h4>بلاغ تصحيح: ${escapeHtml(item.targetMemberFirstName || "—")}</h4>
+            <div class="card-meta">
+              الاسم الرباعي المسجّل حالياً: ${escapeHtml(item.targetMemberFullName || "—")}<br>
+              العائلة: ${escapeHtml(familyLabel(item.familyId))}
+            </div>
+          </div>
+          <div class="card-meta">
+            مُقدّم البلاغ:<br>
+            ${escapeHtml(item.submitterName || "")}<br>
+            ${escapeHtml(item.submitterEmail || "")}<br>
+            ${escapeHtml(item.submitterPhone || "")}
+          </div>
+        </div>
+        <p class="card-meta" style="margin-top:10px;"><strong>الخطأ المُبلَّغ عنه:</strong> ${escapeHtml(item.issueDescription || "—")}</p>
+        ${item.suggestedCorrection ? `<p class="card-meta"><strong>الصحيح حسب المُبلِّغ:</strong> ${escapeHtml(item.suggestedCorrection)}</p>` : ""}
+        ${!targetStillExists ? `<p class="card-meta" style="color:var(--danger);">تنبيه: هذا الشخص لم يعد موجوداً في الشجرة حالياً.</p>` : ""}
+        <div class="card-actions">
+          ${targetStillExists ? `<button class="btn btn-solid" data-open-correction-edit="${item.id}" data-target-id="${item.targetMemberId}">فتح للتعديل</button>` : ""}
+          <button class="btn btn-ghost" data-archive="${item.id}">أرشفة (تم الاطلاع)</button>
+        </div>
+      `;
+      panelPending.appendChild(card);
+      return;
+    }
+
     if(item.type === "linkSuggestion"){
       const personA = membersFlat.find(m => m.id === item.personAId);
       const personB = membersFlat.find(m => m.id === item.personBId);
@@ -230,6 +262,7 @@ onSnapshot(collection(db, "pendingSubmissions"), (snap)=>{
           status: item.status,
           spouseName: item.spouseName || null,
           photoURL: item.photoURL || null,
+          addedByName: item.submitterName || null,
           createdAt: serverTimestamp(),
           approvedBy: auth.currentUser.email,
         };
@@ -274,6 +307,19 @@ onSnapshot(collection(db, "pendingSubmissions"), (snap)=>{
     });
   });
 
+  panelPending.querySelectorAll("[data-open-correction-edit]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const targetId = btn.dataset.targetId;
+      const member = membersFlat.find(m => m.id === targetId);
+      if(!member){
+        alert("تعذّر إيجاد هذا الشخص، ربما تم حذفه.");
+        return;
+      }
+      document.querySelector('.tab-btn[data-tab="manage"]').click();
+      openEdit(member);
+    });
+  });
+
   panelPending.querySelectorAll("[data-approve-chain]").forEach(btn=>{
     btn.addEventListener("click", async ()=>{
       const id = btn.dataset.approveChain;
@@ -289,6 +335,7 @@ onSnapshot(collection(db, "pendingSubmissions"), (snap)=>{
             status: step.status,
             spouseName: step.spouseName || null,
             photoURL: null,
+            addedByName: item.submitterName || null,
             createdAt: serverTimestamp(),
             approvedBy: auth.currentUser.email,
           };
