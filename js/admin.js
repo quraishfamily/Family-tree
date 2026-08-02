@@ -133,8 +133,38 @@ onSnapshot(collection(db, "pendingSubmissions"), (snap)=>{
       return;
     }
 
+    if(item.type === "linkSuggestion"){
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <div class="card-head">
+          <div>
+            <h4>اقتراح ربط: ${escapeHtml(item.personAFirstName || "—")} ↔ ${escapeHtml(item.personBFirstName || "—")}</h4>
+            <div class="card-meta">${item.note ? escapeHtml(item.note) : "بدون ملاحظة إضافية من مقدّم الاقتراح."}</div>
+          </div>
+          <div class="card-meta">
+            مُقدّم الاقتراح:<br>
+            ${escapeHtml(item.submitterName || "")}<br>
+            ${escapeHtml(item.submitterEmail || "")}<br>
+            ${escapeHtml(item.submitterPhone || "")}
+          </div>
+        </div>
+        <p class="card-meta" style="margin-top:10px;">
+          هذا اقتراح فقط ولا يغيّر الشجرة تلقائياً. لو تأكدت من صحة القرابة، روح لتبويب "إدارة الشجرة"،
+          اضغط "تعديل" على أحد الشخصين، وحدد الشخص الثاني (أو جداً جديداً) من حقل "الأب/الأم".
+        </p>
+        <div class="card-actions">
+          <button class="btn btn-ghost" data-archive="${item.id}">أرشفة (تم الاطلاع)</button>
+        </div>
+      `;
+      panelPending.appendChild(card);
+      return;
+    }
+
     let relationLine;
-    if(item.type === "father"){
+    if(item.type === "newRoot"){
+      relationLine = `سيُضاف كفرع عائلي مستقل (غير متصل بأي شخص حالياً)`;
+    } else if(item.type === "father"){
       relationLine = `سيُضاف كأب لـ: ${escapeHtml(item.targetChildFirstName || "—")} (وسيصبح جذراً جديداً في هذا الفرع)`;
     } else if(item.type === "sibling"){
       relationLine = `سيُضاف كأخ/أخت لـ: ${escapeHtml(item.siblingOfFirstName || "—")}`;
@@ -219,6 +249,12 @@ onSnapshot(collection(db, "pendingSubmissions"), (snap)=>{
     btn.addEventListener("click", async ()=>{
       if(!confirm("متأكد من رفض هذا الطلب؟ لا يمكن التراجع.")) return;
       await deleteDoc(doc(db, "pendingSubmissions", btn.dataset.reject));
+    });
+  });
+
+  panelPending.querySelectorAll("[data-archive]").forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
+      await deleteDoc(doc(db, "pendingSubmissions", btn.dataset.archive));
     });
   });
 
