@@ -69,6 +69,15 @@
         <p class="card-meta">استخدم هذا لإضافة الجد الأول للشجرة، أو أي بيانات أولية تملكها جاهزة.</p>
         <form id="directAddForm">
           <div class="field">
+            <label>العائلة</label>
+            <select id="directFamily" required>
+              <option value="quraish">آل قريش</option>
+              <option value="abbas">آل عباس</option>
+              <option value="abdrabbo">آل عبدربه</option>
+              <option value="alsaleh">الصالح</option>
+            </select>
+          </div>
+          <div class="field">
             <label>الأب/الأم في الشجرة (اختياري — اتركه فارغاً لإنشاء جذر جديد)</label>
             <select id="directParent"><option value="">— بدون (جذر الشجرة) —</option></select>
           </div>
@@ -98,6 +107,15 @@
       <h3>تعديل البيانات</h3>
       <form id="editForm">
         <input type="hidden" id="editId">
+        <div class="field">
+          <label>العائلة</label>
+          <select id="editFamily">
+            <option value="quraish">آل قريش</option>
+            <option value="abbas">آل عباس</option>
+            <option value="abdrabbo">آل عبدربه</option>
+            <option value="alsaleh">الصالح</option>
+          </select>
+        </div>
         <div class="field"><label>الاسم الأول</label><input type="text" id="editFirstName" required></div>
         <div class="field"><label>الاسم الرباعي</label><input type="text" id="editFullName" required></div>
         <div class="field">
