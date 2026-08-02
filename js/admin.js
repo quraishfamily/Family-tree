@@ -5,6 +5,17 @@ import {
   signInWithEmailAndPassword, signOut, onAuthStateChanged
 } from "./firebase-init.js";
 
+const FAMILIES = {
+  quraish:  "آل قريش",
+  abbas:    "آل عباس",
+  abdrabbo: "آل عبدربه",
+  alsaleh:  "الصالح",
+};
+
+function familyLabel(familyId){
+  return FAMILIES[familyId] || "بدون عائلة محددة";
+}
+
 function escapeHtml(str=""){
   return String(str).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
@@ -66,7 +77,7 @@ onSnapshot(query(collection(db, "members"), orderBy("createdAt","asc")), (snap)=
 });
 
 function memberLabel(m){
-  return `${m.firstName} — ${m.fullName || ""}`;
+  return `${m.firstName} — ${m.fullName || ""} (${familyLabel(m.familyId)})`;
 }
 
 function renderParentSelect(){
@@ -114,6 +125,7 @@ onSnapshot(collection(db, "pendingSubmissions"), (snap)=>{
         <div class="card-head">
           <div>
             <h4>سلسلة ربط جديدة (${item.steps.length} ${item.steps.length === 1 ? "حلقة" : "حلقات"})</h4>
+            <div class="card-meta">العائلة: ${escapeHtml(familyLabel(item.familyId))}</div>
             <div class="card-meta">تبدأ من الشخص الموجود بالشجرة: ${escapeHtml(item.anchorFirstName || "—")}</div>
           </div>
           <div class="card-meta">
@@ -134,12 +146,14 @@ onSnapshot(collection(db, "pendingSubmissions"), (snap)=>{
     }
 
     if(item.type === "linkSuggestion"){
+      const personA = membersFlat.find(m => m.id === item.personAId);
+      const personB = membersFlat.find(m => m.id === item.personBId);
       const card = document.createElement("div");
       card.className = "card";
       card.innerHTML = `
         <div class="card-head">
           <div>
-            <h4>اقتراح ربط: ${escapeHtml(item.personAFirstName || "—")} ↔ ${escapeHtml(item.personBFirstName || "—")}</h4>
+            <h4>اقتراح ربط: ${escapeHtml(item.personAFirstName || "—")} (${escapeHtml(familyLabel(personA && personA.familyId))}) ↔ ${escapeHtml(item.personBFirstName || "—")} (${escapeHtml(familyLabel(personB && personB.familyId))})</h4>
             <div class="card-meta">${item.note ? escapeHtml(item.note) : "بدون ملاحظة إضافية من مقدّم الاقتراح."}</div>
           </div>
           <div class="card-meta">
@@ -180,6 +194,7 @@ onSnapshot(collection(db, "pendingSubmissions"), (snap)=>{
           <div>
             <h4>${escapeHtml(item.firstName)}</h4>
             <div class="card-meta">
+              العائلة: ${escapeHtml(familyLabel(item.familyId))}<br>
               الاسم الرباعي: ${escapeHtml(item.fullName || "—")}<br>
               الحالة: ${item.status === "deceased" ? "متوفى" : "على قيد الحياة"}
               ${item.spouseName ? `<br>الزوج/الزوجة: ${escapeHtml(item.spouseName)}` : ""}<br>
@@ -211,6 +226,7 @@ onSnapshot(collection(db, "pendingSubmissions"), (snap)=>{
         const baseFields = {
           firstName: item.firstName,
           fullName: item.fullName,
+          familyId: item.familyId || null,
           status: item.status,
           spouseName: item.spouseName || null,
           photoURL: item.photoURL || null,
@@ -269,6 +285,7 @@ onSnapshot(collection(db, "pendingSubmissions"), (snap)=>{
           const baseFields = {
             firstName: step.firstName,
             fullName: step.fullName,
+            familyId: item.familyId || null,
             status: step.status,
             spouseName: step.spouseName || null,
             photoURL: null,
@@ -309,6 +326,7 @@ function renderManageList(){
       <td>${m.photoURL ? `<img class="thumb" src="${m.photoURL}">` : "—"}</td>
       <td>${escapeHtml(m.firstName)}</td>
       <td>${escapeHtml(m.fullName || "—")}</td>
+      <td>${escapeHtml(familyLabel(m.familyId))}</td>
       <td>${m.status === "deceased" ? "متوفى" : "حيّ"}</td>
       <td>
         <button class="btn btn-ghost" data-edit="${m.id}">تعديل</button>
@@ -317,7 +335,7 @@ function renderManageList(){
     </tr>
   `).join("");
   wrap.innerHTML = `<table class="table"><thead><tr>
-    <th></th><th>الاسم</th><th>الرباعي</th><th>الحالة</th><th></th>
+    <th></th><th>الاسم</th><th>الرباعي</th><th>العائلة</th><th>الحالة</th><th></th>
   </tr></thead><tbody>${rows}</tbody></table>`;
 
   wrap.querySelectorAll("[data-edit]").forEach(btn=>{
@@ -339,6 +357,7 @@ function renderManageList(){
 
 function openEdit(m){
   document.getElementById("editId").value = m.id;
+  document.getElementById("editFamily").value = m.familyId || "quraish";
   document.getElementById("editFirstName").value = m.firstName || "";
   document.getElementById("editFullName").value = m.fullName || "";
   document.getElementById("editStatus").value = m.status || "alive";
@@ -371,6 +390,7 @@ document.getElementById("editForm").addEventListener("submit", async (e)=>{
     await updateDoc(doc(db, "members", id), {
       firstName: document.getElementById("editFirstName").value.trim(),
       fullName: document.getElementById("editFullName").value.trim(),
+      familyId: document.getElementById("editFamily").value,
       status: document.getElementById("editStatus").value,
       spouseName: document.getElementById("editSpouse").value.trim() || null,
       parentId: document.getElementById("editParent").value || null,
@@ -400,6 +420,7 @@ document.getElementById("directAddForm").addEventListener("submit", async (e)=>{
     }
     await addDoc(collection(db, "members"), {
       parentId: document.getElementById("directParent").value || null,
+      familyId: document.getElementById("directFamily").value,
       firstName: document.getElementById("directFirstName").value.trim(),
       fullName: document.getElementById("directFullName").value.trim(),
       status: document.getElementById("directStatus").value,
