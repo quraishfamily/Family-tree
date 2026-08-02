@@ -57,16 +57,44 @@ document.querySelectorAll(".overlay").forEach(ov=>{
   ov.addEventListener("click", (e)=>{ if(e.target === ov) ov.classList.add("hidden"); });
 });
 
+/* ---------------- تحديد العائلة الحالية من الرابط ---------------- */
+const FAMILIES = {
+  quraish:  "آل قريش",
+  abbas:    "آل عباس",
+  abdrabbo: "آل عبدربه",
+  alsaleh:  "الصالح",
+};
+
+const urlParams = new URLSearchParams(location.search);
+const currentFamily = urlParams.get("family"); // 'quraish' | 'abbas' | 'abdrabbo' | 'alsaleh' | 'all' | null
+
+if(!currentFamily || (currentFamily !== "all" && !FAMILIES[currentFamily])){
+  document.body.innerHTML = `
+    <div class="empty-state">
+      <h3>ما تم تحديد عائلة صحيحة</h3>
+      <p>ارجع لصفحة البداية واختر عائلتك.</p>
+      <p><a class="btn btn-solid" href="index.html" style="text-decoration:none;display:inline-block;margin-top:14px;">الرجوع لصفحة البداية</a></p>
+    </div>`;
+  throw new Error("invalid family");
+}
+
+document.getElementById("familyTitle").textContent =
+  currentFamily === "all" ? "الشجرة الكاملة (كل العوائل)" : `شجرة ${FAMILIES[currentFamily]}`;
+
 /* ---------------- تحميل بيانات الشجرة ---------------- */
-let membersFlat = [];
+let allMembersFlat = [];  // كل الأعضاء بجميع العوائل (تُستخدم في اقتراح الربط بين شخصين)
+let membersFlat = [];     // الأعضاء المفلترين حسب العائلة الحالية (تُستخدم لعرض الشجرة)
 let currentDetailMember = null;
 
 const treeContainer = document.getElementById("treeContainer");
 
 const q = query(collection(db, "members"), orderBy("createdAt", "asc"));
 onSnapshot(q, (snap) => {
-  membersFlat = [];
-  snap.forEach(d => membersFlat.push({ id: d.id, ...d.data() }));
+  allMembersFlat = [];
+  snap.forEach(d => allMembersFlat.push({ id: d.id, ...d.data() }));
+  membersFlat = currentFamily === "all"
+    ? allMembersFlat
+    : allMembersFlat.filter(m => m.familyId === currentFamily);
   renderTree();
   renderMemberSelects();
 }, (err) => {
@@ -74,8 +102,8 @@ onSnapshot(q, (snap) => {
 });
 
 function renderMemberSelects(){
-  const options = membersFlat
-    .map(m => `<option value="${m.id}">${escapeHtml(m.firstName)} — ${escapeHtml(m.fullName || "")}</option>`)
+  const options = allMembersFlat
+    .map(m => `<option value="${m.id}">${escapeHtml(m.firstName)} — ${escapeHtml(m.fullName || "")} (${escapeHtml(FAMILIES[m.familyId] || "بدون عائلة")})</option>`)
     .join("");
   ["linkPersonA", "linkPersonB"].forEach(id=>{
     const sel = document.getElementById(id);
@@ -258,6 +286,7 @@ document.getElementById("addForm").addEventListener("submit", async (e)=>{
 
     const payload = {
       type: addMode,
+      familyId: addTargetMember.familyId || currentFamily,
       firstName, fullName, status,
       spouseName: spouseName || null,
       photoURL,
@@ -394,6 +423,7 @@ document.getElementById("submitChainBtn").addEventListener("click", async ()=>{
   try{
     await addDoc(collection(db, "pendingSubmissions"), {
       type: "chain",
+      familyId: chainAnchorMember.familyId || currentFamily,
       anchorId: chainAnchorMember.id,
       anchorFirstName: chainAnchorMember.firstName,
       steps,
@@ -417,6 +447,7 @@ document.getElementById("openNewRootBtn").addEventListener("click", ()=>{
   ensureIdentity(()=>{
     document.getElementById("newRootForm").reset();
     document.getElementById("newRootMsg").innerHTML = "";
+    document.getElementById("rootFamilyFieldWrap").style.display = currentFamily === "all" ? "block" : "none";
     openOverlay("newRootOverlay");
   });
 });
@@ -429,6 +460,7 @@ document.getElementById("newRootForm").addEventListener("submit", async (e)=>{
   const identity = getIdentity();
   if(!identity){ ensureIdentity(()=>{}); return; }
 
+  const familyId = currentFamily === "all" ? document.getElementById("rootFamily").value : currentFamily;
   const firstName = document.getElementById("rootFirstName").value.trim();
   const fullName = document.getElementById("rootFullName").value.trim();
   const status = document.getElementById("rootStatus").value;
@@ -441,6 +473,7 @@ document.getElementById("newRootForm").addEventListener("submit", async (e)=>{
   try{
     await addDoc(collection(db, "pendingSubmissions"), {
       type: "newRoot",
+      familyId,
       parentId: null,
       firstName, fullName, status,
       spouseName: spouseName || null,
@@ -490,8 +523,8 @@ document.getElementById("linkSuggestionForm").addEventListener("submit", async (
     return;
   }
 
-  const personA = membersFlat.find(m => m.id === personAId);
-  const personB = membersFlat.find(m => m.id === personBId);
+  const personA = allMembersFlat.find(m => m.id === personAId);
+  const personB = allMembersFlat.find(m => m.id === personBId);
 
   const submitBtn = e.target.querySelector("button[type=submit]");
   submitBtn.disabled = true;
