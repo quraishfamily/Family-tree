@@ -10,193 +10,45 @@
 
   <header class="charter-header">
     <div class="charter-eyebrow">سجل الأنساب</div>
-    <h1 class="charter-title" id="familyTitle">شجرة العائلة</h1>
-    <p class="charter-sub">اضغط على أي اسم لعرض تفاصيله، أو لإضافة أبناء له</p>
-    <div class="identity-chip" id="identityChip"></div>
+    <h1 class="charter-title">شجرة العائلة</h1>
+    <p class="charter-sub">أربع عوائل، تُبنى شجرة كل واحدة منها على حدة، ثم تُربط ببعضها لاحقاً عند اجتماع الأجداد والجدات</p>
   </header>
 
-  <div class="toolbar">
-    <button class="btn" id="expandAllBtn">توسيع الكل</button>
-    <button class="btn" id="collapseAllBtn">طي الكل</button>
-    <button class="btn btn-ghost" id="openNewRootBtn">إضافة فرع عائلي جديد (غير متصل)</button>
-    <button class="btn btn-ghost" id="openLinkSuggestionBtn">اقتراح ربط بين شخصين</button>
-  </div>
+  <section style="max-width:760px;margin:0 auto;padding:36px 20px 10px;">
+    <div class="card" style="margin-bottom:30px;">
+      <h3 style="font-family:'Aref Ruqaa',serif;color:var(--gold-light);margin-top:0;font-size:22px;">كيف تستخدم الأداة؟</h3>
+      <ol style="color:var(--ivory);line-height:2.1;padding-inline-start:22px;font-size:15px;">
+        <li>اختر عائلتك من الأربع بالأسفل.</li>
+        <li>تصفّح شجرة عائلتك، واضغط على أي اسم لعرض تفاصيله.</li>
+        <li>سجّل بياناتك (الاسم الرباعي، الإيميل، الجوال) مرة وحدة حتى تقدر تضيف معلومات.</li>
+        <li>أضف ابناً، أخاً، أو حتى جداً جديداً لأي شخص — أو فرعاً مستقلاً كاملاً لو ما تعرف كيف يتصل بالباقي.</li>
+        <li>كل إضافة تنتظر مراجعة المسؤول قبل ما تظهر فعلياً بالشجرة.</li>
+        <li>لو لاحظت إن شخصين (حتى من عائلتين مختلفتين) أقارب لبعض، اقترح الربط بينهم من داخل صفحة الشجرة.</li>
+      </ol>
+    </div>
 
-  <div class="tree-wrap">
-    <div id="treeContainer"></div>
-  </div>
+    <h3 style="font-family:'Aref Ruqaa',serif;color:var(--gold-light);text-align:center;font-size:24px;">اختر عائلتك</h3>
+    <div class="family-grid">
+      <a class="card family-card" href="tree.html?family=quraish">
+        <h4>آل قريش</h4>
+      </a>
+      <a class="card family-card" href="tree.html?family=abbas">
+        <h4>آل عباس</h4>
+      </a>
+      <a class="card family-card" href="tree.html?family=abdrabbo">
+        <h4>آل عبدربه</h4>
+      </a>
+      <a class="card family-card" href="tree.html?family=alsaleh">
+        <h4>الصالح</h4>
+      </a>
+    </div>
+
+    <div style="text-align:center;margin:28px 0 10px;">
+      <a class="btn btn-ghost" href="tree.html?family=all">عرض الشجرة الكاملة (بعد الربط بين العوائل)</a>
+    </div>
+  </section>
 
   <footer class="site-footer">جميع الإضافات الجديدة تخضع لمراجعة المسؤول قبل ظهورها في الشجرة</footer>
 
-  <!-- نافذة تحديد الهوية -->
-  <div class="overlay hidden" id="identityOverlay">
-    <div class="modal">
-      <h3>مين أنت؟</h3>
-      <p class="hint">نحتاج بياناتك حتى نعرف مين أضاف كل معلومة، تُستخدم فقط لمراجعة الإضافات من قِبل المسؤول.</p>
-      <form id="identityForm">
-        <div class="field">
-          <label>الاسم الرباعي</label>
-          <input type="text" id="idName" required placeholder="مثال: أحمد محمد علي الفلاني">
-        </div>
-        <div class="field">
-          <label>البريد الإلكتروني</label>
-          <input type="email" id="idEmail" required placeholder="name@example.com">
-        </div>
-        <div class="field">
-          <label>رقم الجوال</label>
-          <input type="tel" id="idPhone" required placeholder="05xxxxxxxx">
-        </div>
-        <div class="form-actions">
-          <button type="submit" class="btn btn-solid">حفظ ومتابعة</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- نافذة تفاصيل الشخص -->
-  <div class="overlay hidden" id="detailOverlay">
-    <div class="modal">
-      <button class="close" data-close="detailOverlay">×</button>
-      <h3 id="detailName">—</h3>
-      <div class="detail-row"><span>الاسم الرباعي</span><span id="detailFullName">—</span></div>
-      <div class="detail-row"><span>الحالة</span><span id="detailStatus">—</span></div>
-      <div class="detail-row" id="detailSpouseRow"><span>الزوج/الزوجة</span><span id="detailSpouse">—</span></div>
-      <div class="form-actions" style="flex-wrap:wrap;">
-        <button class="btn btn-solid" id="openAddChildBtn">إضافة ابن / ابنة</button>
-        <button class="btn" id="openAddSiblingBtn">إضافة أخ / أخت</button>
-        <button class="btn" id="openAddFatherBtn">إضافة أب</button>
-      </div>
-      <div class="form-actions">
-        <button class="btn btn-ghost" id="openChainBtn" style="width:100%;">ربط قريب عبر جد مشترك (سلسلة كاملة)</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- نافذة إضافة فرد جديد -->
-  <div class="overlay hidden" id="addOverlay">
-    <div class="modal">
-      <button class="close" data-close="addOverlay">×</button>
-      <h3 id="addModalTitle">إضافة فرد جديد</h3>
-      <p class="hint" id="addParentHint">سيُضاف كابن/ابنة لـ: —</p>
-      <form id="addForm">
-        <div class="field">
-          <label>الاسم الأول (يظهر في الشجرة)</label>
-          <input type="text" id="newFirstName" required>
-        </div>
-        <div class="field">
-          <label>الاسم الرباعي كامل</label>
-          <input type="text" id="newFullName" required placeholder="مثال: خالد أحمد محمد الفلاني">
-        </div>
-        <div class="field">
-          <label>الحالة</label>
-          <select id="newStatus">
-            <option value="alive">على قيد الحياة</option>
-            <option value="deceased">متوفى</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>اسم الزوج/الزوجة (اختياري)</label>
-          <input type="text" id="newSpouse" placeholder="اختياري">
-        </div>
-        <div class="field" id="photoFieldWrap" style="display:none;">
-          <label>صورة (اختياري)</label>
-          <input type="file" id="newPhoto" accept="image/*">
-        </div>
-        <p class="hint" id="photoDisabledNote">📷 رفع الصور غير مفعّل حالياً في الأداة، بيتم تفعيله لاحقاً.</p>
-        <div class="form-actions">
-          <button type="submit" class="btn btn-solid">إرسال للمراجعة</button>
-        </div>
-        <div id="addFormMsg"></div>
-      </form>
-    </div>
-  </div>
-
-  <!-- نافذة ربط قريب عبر جد مشترك (سلسلة كاملة) -->
-  <div class="overlay hidden" id="chainOverlay">
-    <div class="modal" style="max-width:560px;">
-      <button class="close" data-close="chainOverlay">×</button>
-      <h3>ربط قريب عبر جد مشترك</h3>
-      <p class="hint" id="chainAnchorHint">ابدأ من: —</p>
-      <p class="hint" style="margin-top:-10px;">
-        استخدم هذا لما يكون القريب اللي تبي تضيفه غير متصل مباشرة بأحد الموجودين بالشجرة.
-        ابنِ الحلقات الناقصة بالترتيب (مثال: أب، ثم ابنه الثاني، ثم القريب المطلوب) وأرسلها كلها دفعة وحدة.
-      </p>
-      <div id="chainSteps"></div>
-      <button type="button" class="btn" id="addChainStepBtn" style="width:100%;">+ إضافة حلقة جديدة</button>
-      <div class="form-actions">
-        <button type="button" class="btn btn-solid" id="submitChainBtn">إرسال السلسلة كاملة للمراجعة</button>
-      </div>
-      <div id="chainMsg"></div>
-    </div>
-  </div>
-
-  <!-- نافذة إضافة فرع عائلي جديد غير متصل -->
-  <div class="overlay hidden" id="newRootOverlay">
-    <div class="modal">
-      <button class="close" data-close="newRootOverlay">×</button>
-      <h3>إضافة فرع عائلي جديد</h3>
-      <p class="hint">
-        استخدم هذا لو تبي تسجّل جدك (أو أي قريب) بدون ما تعرف كيف يتصل بالأشخاص الموجودين حالياً بالشجرة.
-        بيظهر كفرع مستقل، ولو تبيّن لاحقاً إن فيه قرابة، تقدر تستخدم "اقتراح ربط بين شخصين" لإبلاغ الأدمن.
-      </p>
-      <form id="newRootForm">
-        <div class="field">
-          <label>الاسم الأول (يظهر في الشجرة)</label>
-          <input type="text" id="rootFirstName" required>
-        </div>
-        <div class="field">
-          <label>الاسم الرباعي كامل</label>
-          <input type="text" id="rootFullName" required placeholder="مثال: خالد أحمد محمد الفلاني">
-        </div>
-        <div class="field">
-          <label>الحالة</label>
-          <select id="rootStatus">
-            <option value="alive">على قيد الحياة</option>
-            <option value="deceased">متوفى</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>اسم الزوج/الزوجة (اختياري)</label>
-          <input type="text" id="rootSpouse" placeholder="اختياري">
-        </div>
-        <div class="form-actions">
-          <button type="submit" class="btn btn-solid">إرسال للمراجعة</button>
-        </div>
-        <div id="newRootMsg"></div>
-      </form>
-    </div>
-  </div>
-
-  <!-- نافذة اقتراح ربط بين شخصين -->
-  <div class="overlay hidden" id="linkSuggestionOverlay">
-    <div class="modal">
-      <button class="close" data-close="linkSuggestionOverlay">×</button>
-      <h3>اقتراح ربط بين شخصين</h3>
-      <p class="hint">
-        لو لاحظت إن شخصين بالشجرة أقارب لبعض (حتى لو ما تعرف تفاصيل صلة القرابة بالضبط)، أخبرنا هنا
-        وراح يراجعها الأدمن ويربطهم يدوياً بعد التأكد.
-      </p>
-      <form id="linkSuggestionForm">
-        <div class="field">
-          <label>الشخص الأول</label>
-          <select id="linkPersonA" required></select>
-        </div>
-        <div class="field">
-          <label>الشخص الثاني</label>
-          <select id="linkPersonB" required></select>
-        </div>
-        <div class="field">
-          <label>وش تعرفه عن صلة القرابة بينهم؟</label>
-          <textarea id="linkNote" rows="4" style="width:100%;background:var(--navy-deep);border:1px solid var(--navy-line);color:var(--ivory);border-radius:8px;padding:10px 12px;font-family:inherit;font-size:14px;" placeholder="مثال: أعتقد إن جدهم واحد، بس ما أعرف اسمه بالضبط. سمعت من كبار العائلة إنهم أبناء عم."></textarea>
-        </div>
-        <div class="form-actions">
-          <button type="submit" class="btn btn-solid">إرسال الاقتراح</button>
-        </div>
-        <div id="linkSuggestionMsg"></div>
-      </form>
-    </div>
-  </div>
-
-  <script type="module" src="js/app.js"></script>
 </body>
 </html>
