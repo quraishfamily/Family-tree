@@ -63,6 +63,7 @@
       <div class="detail-row"><span>الاسم الرباعي</span><span id="detailFullName">—</span></div>
       <div class="detail-row"><span>الحالة</span><span id="detailStatus">—</span></div>
       <div class="detail-row" id="detailSpouseRow"><span>الزوج/الزوجة</span><span id="detailSpouse">—</span></div>
+      <div class="detail-row" id="detailAddedByRow"><span>أُضيف بواسطة</span><span id="detailAddedBy">—</span></div>
       <div class="form-actions" style="flex-wrap:wrap;">
         <button class="btn btn-solid" id="openAddChildBtn">إضافة ابن / ابنة</button>
         <button class="btn" id="openAddSiblingBtn">إضافة أخ / أخت</button>
@@ -70,6 +71,9 @@
       </div>
       <div class="form-actions">
         <button class="btn btn-ghost" id="openChainBtn" style="width:100%;">ربط قريب عبر جد مشترك (سلسلة كاملة)</button>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-danger" id="openCorrectionBtn" style="width:100%;">الإبلاغ عن خطأ / طلب تصحيح</button>
       </div>
     </div>
   </div>
@@ -204,6 +208,29 @@
           <button type="submit" class="btn btn-solid">إرسال الاقتراح</button>
         </div>
         <div id="linkSuggestionMsg"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- نافذة الإبلاغ عن خطأ / طلب تصحيح -->
+  <div class="overlay hidden" id="correctionOverlay">
+    <div class="modal">
+      <button class="close" data-close="correctionOverlay">×</button>
+      <h3>الإبلاغ عن خطأ</h3>
+      <p class="hint" id="correctionTargetHint">بخصوص: —</p>
+      <form id="correctionForm">
+        <div class="field">
+          <label>وش الخطأ اللي لاحظته؟</label>
+          <textarea id="correctionIssue" required rows="4" style="width:100%;background:var(--navy-deep);border:1px solid var(--navy-line);color:var(--ivory);border-radius:8px;padding:10px 12px;font-family:inherit;font-size:14px;" placeholder="مثال: حسن مو والد محمد، هو عمّه."></textarea>
+        </div>
+        <div class="field">
+          <label>وش الصحيح حسب علمك؟ (اختياري)</label>
+          <textarea id="correctionSuggestion" rows="3" style="width:100%;background:var(--navy-deep);border:1px solid var(--navy-line);color:var(--ivory);border-radius:8px;padding:10px 12px;font-family:inherit;font-size:14px;" placeholder="مثال: والد محمد الحقيقي هو خالد."></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-solid">إرسال البلاغ</button>
+        </div>
+        <div id="correctionMsg"></div>
       </form>
     </div>
   </div>
