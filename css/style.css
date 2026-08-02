@@ -382,16 +382,22 @@ footer.site-footer{
 }
 
 /* ---------- بطاقات اختيار العائلة (الصفحة الرئيسية) ---------- */
+.family-grid-frame{
+  border:1px solid var(--gold-dim);
+  border-radius:var(--radius);
+  padding:20px;
+  margin-top:16px;
+  box-shadow:var(--shadow);
+}
 .family-grid{
   display:grid;
-  grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));
-  gap:16px;
-  margin-top:16px;
+  grid-template-columns:repeat(4, 1fr);
+  gap:14px;
 }
 .family-card{
   text-decoration:none;
   text-align:center;
-  padding:28px 16px;
+  padding:22px 10px;
   cursor:pointer;
   transition:.15s ease;
 }
@@ -401,7 +407,7 @@ footer.site-footer{
 }
 .family-card h4{
   font-family:'Aref Ruqaa', serif;
-  font-size:22px;
+  font-size:20px;
   color:var(--gold-light);
   margin:0;
 }
@@ -411,4 +417,14 @@ footer.site-footer{
   color:var(--muted);
   font-size:13px;
   text-decoration:underline;
+}
+@media (max-width:640px){
+  .family-grid{
+    grid-template-columns:repeat(2, 1fr);
+  }
+}
+@media (max-width:380px){
+  .family-grid{
+    grid-template-columns:1fr;
+  }
 }
