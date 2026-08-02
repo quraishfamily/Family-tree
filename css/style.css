@@ -375,6 +375,55 @@ footer.site-footer{
   border-top:1px solid var(--navy-line);
 }
 
+.node.draft-node{
+  border-style:dashed;
+  border-color:var(--gold);
+  background:rgba(201,162,39,.08);
+}
+.draft-badge{
+  position:absolute;
+  top:-9px;
+  inset-inline-start:50%;
+  transform:translateX(50%);
+  background:var(--gold);
+  color:#1a1406;
+  font-size:10px;
+  font-weight:700;
+  padding:1px 8px;
+  border-radius:999px;
+  white-space:nowrap;
+}
+
+/* ---------- شريط المسودة العائم ---------- */
+.draft-bar{
+  position:fixed;
+  bottom:18px;
+  inset-inline-start:50%;
+  transform:translateX(50%);
+  background:var(--navy-panel);
+  border:1px solid var(--gold);
+  border-radius:999px;
+  padding:10px 10px 10px 20px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  box-shadow:var(--shadow);
+  z-index:40;
+}
+.draft-bar.hidden{ display:none; }
+.draft-bar span{ font-size:14px; color:var(--gold-light); font-weight:700; white-space:nowrap; }
+.draft-bar .btn{ padding:8px 16px; font-size:13px; }
+
+.draft-list-item{
+  padding:10px 0;
+  border-bottom:1px solid var(--navy-line);
+  font-size:14px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+}
+
 @media (max-width:600px){
   .charter-title{ font-size:30px; }
   .node{ min-width:96px; padding:10px 12px 10px; }
