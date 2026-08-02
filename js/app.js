@@ -210,6 +210,13 @@ function showDetail(member){
   } else {
     spouseRow.style.display = "none";
   }
+  const addedByRow = document.getElementById("detailAddedByRow");
+  if(member.addedByName){
+    addedByRow.style.display = "flex";
+    document.getElementById("detailAddedBy").textContent = member.addedByName;
+  } else {
+    addedByRow.style.display = "none";
+  }
   // زر "إضافة أب" يظهر فقط إذا كان الشخص بدون أب مسجّل حالياً في الشجرة
   document.getElementById("openAddFatherBtn").style.display = member.parentId ? "none" : "inline-block";
   openOverlay("detailOverlay");
@@ -230,6 +237,54 @@ document.getElementById("openAddFatherBtn").addEventListener("click", ()=>{
 document.getElementById("openChainBtn").addEventListener("click", ()=>{
   closeOverlay("detailOverlay");
   openChainModal(currentDetailMember);
+});
+document.getElementById("openCorrectionBtn").addEventListener("click", ()=>{
+  ensureIdentity(()=>{
+    closeOverlay("detailOverlay");
+    document.getElementById("correctionTargetHint").textContent = `بخصوص: ${currentDetailMember.firstName}`;
+    document.getElementById("correctionForm").reset();
+    document.getElementById("correctionMsg").innerHTML = "";
+    openOverlay("correctionOverlay");
+  });
+});
+
+document.getElementById("correctionForm").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const msgEl = document.getElementById("correctionMsg");
+  msgEl.innerHTML = "";
+
+  const identity = getIdentity();
+  if(!identity){ ensureIdentity(()=>{}); return; }
+
+  const issueDescription = document.getElementById("correctionIssue").value.trim();
+  const suggestedCorrection = document.getElementById("correctionSuggestion").value.trim();
+  if(!issueDescription){ return; }
+
+  const submitBtn = e.target.querySelector("button[type=submit]");
+  submitBtn.disabled = true;
+  submitBtn.textContent = "جارٍ الإرسال...";
+  try{
+    await addDoc(collection(db, "pendingSubmissions"), {
+      type: "correction",
+      familyId: currentDetailMember.familyId || currentFamily,
+      targetMemberId: currentDetailMember.id,
+      targetMemberFirstName: currentDetailMember.firstName,
+      targetMemberFullName: currentDetailMember.fullName || null,
+      issueDescription,
+      suggestedCorrection: suggestedCorrection || null,
+      submitterName: identity.name,
+      submitterEmail: identity.email,
+      submitterPhone: identity.phone,
+      submittedAt: serverTimestamp(),
+    });
+    msgEl.innerHTML = `<div class="msg-ok">تم إرسال بلاغك، بيراجعه الأدمن.</div>`;
+    setTimeout(()=> closeOverlay("correctionOverlay"), 1600);
+  }catch(err){
+    msgEl.innerHTML = `<div class="msg-err">حدث خطأ: ${escapeHtml(err.message)}</div>`;
+  }finally{
+    submitBtn.disabled = false;
+    submitBtn.textContent = "إرسال البلاغ";
+  }
 });
 
 /* ---------------- إضافة فرد جديد (يذهب لمراجعة الأدمن) ---------------- */
