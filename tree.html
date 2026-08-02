@@ -75,6 +75,30 @@
       <div class="form-actions">
         <button class="btn btn-danger" id="openCorrectionBtn" style="width:100%;">الإبلاغ عن خطأ / طلب تصحيح</button>
       </div>
+      <div class="form-actions" id="removeDraftWrap" style="display:none;">
+        <button class="btn btn-danger" id="removeDraftBtn" style="width:100%;">حذف هذا الشخص من المسودة</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- الشريط العائم لمسودة الإضافات -->
+  <div class="draft-bar hidden" id="draftBar">
+    <span id="draftBarCount">لديك 0 إضافة في المسودة</span>
+    <button class="btn btn-ghost" id="clearDraftBtn">إلغاء الكل</button>
+    <button class="btn btn-solid" id="reviewDraftBtn">مراجعة وإرسال</button>
+  </div>
+
+  <!-- نافذة مراجعة المسودة قبل الإرسال -->
+  <div class="overlay hidden" id="draftReviewOverlay">
+    <div class="modal" style="max-width:560px;">
+      <button class="close" data-close="draftReviewOverlay">×</button>
+      <h3>مراجعة المسودة قبل الإرسال</h3>
+      <p class="hint">تأكد من الأسماء قبل الإرسال — كل هذا سيُرسل كطلب واحد للمسؤول.</p>
+      <div id="draftReviewList"></div>
+      <div class="form-actions">
+        <button class="btn btn-solid" id="submitDraftBatchBtn">إرسال الكل للمراجعة</button>
+      </div>
+      <div id="draftReviewMsg"></div>
     </div>
   </div>
 
