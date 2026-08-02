@@ -18,6 +18,8 @@
   <div class="toolbar">
     <button class="btn" id="expandAllBtn">توسيع الكل</button>
     <button class="btn" id="collapseAllBtn">طي الكل</button>
+    <button class="btn btn-ghost" id="openNewRootBtn">إضافة فرع عائلي جديد (غير متصل)</button>
+    <button class="btn btn-ghost" id="openLinkSuggestionBtn">اقتراح ربط بين شخصين</button>
   </div>
 
   <div class="tree-wrap">
@@ -125,6 +127,73 @@
         <button type="button" class="btn btn-solid" id="submitChainBtn">إرسال السلسلة كاملة للمراجعة</button>
       </div>
       <div id="chainMsg"></div>
+    </div>
+  </div>
+
+  <!-- نافذة إضافة فرع عائلي جديد غير متصل -->
+  <div class="overlay hidden" id="newRootOverlay">
+    <div class="modal">
+      <button class="close" data-close="newRootOverlay">×</button>
+      <h3>إضافة فرع عائلي جديد</h3>
+      <p class="hint">
+        استخدم هذا لو تبي تسجّل جدك (أو أي قريب) بدون ما تعرف كيف يتصل بالأشخاص الموجودين حالياً بالشجرة.
+        بيظهر كفرع مستقل، ولو تبيّن لاحقاً إن فيه قرابة، تقدر تستخدم "اقتراح ربط بين شخصين" لإبلاغ الأدمن.
+      </p>
+      <form id="newRootForm">
+        <div class="field">
+          <label>الاسم الأول (يظهر في الشجرة)</label>
+          <input type="text" id="rootFirstName" required>
+        </div>
+        <div class="field">
+          <label>الاسم الرباعي كامل</label>
+          <input type="text" id="rootFullName" required placeholder="مثال: خالد أحمد محمد الفلاني">
+        </div>
+        <div class="field">
+          <label>الحالة</label>
+          <select id="rootStatus">
+            <option value="alive">على قيد الحياة</option>
+            <option value="deceased">متوفى</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>اسم الزوج/الزوجة (اختياري)</label>
+          <input type="text" id="rootSpouse" placeholder="اختياري">
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-solid">إرسال للمراجعة</button>
+        </div>
+        <div id="newRootMsg"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- نافذة اقتراح ربط بين شخصين -->
+  <div class="overlay hidden" id="linkSuggestionOverlay">
+    <div class="modal">
+      <button class="close" data-close="linkSuggestionOverlay">×</button>
+      <h3>اقتراح ربط بين شخصين</h3>
+      <p class="hint">
+        لو لاحظت إن شخصين بالشجرة أقارب لبعض (حتى لو ما تعرف تفاصيل صلة القرابة بالضبط)، أخبرنا هنا
+        وراح يراجعها الأدمن ويربطهم يدوياً بعد التأكد.
+      </p>
+      <form id="linkSuggestionForm">
+        <div class="field">
+          <label>الشخص الأول</label>
+          <select id="linkPersonA" required></select>
+        </div>
+        <div class="field">
+          <label>الشخص الثاني</label>
+          <select id="linkPersonB" required></select>
+        </div>
+        <div class="field">
+          <label>وش تعرفه عن صلة القرابة بينهم؟</label>
+          <textarea id="linkNote" rows="4" style="width:100%;background:var(--navy-deep);border:1px solid var(--navy-line);color:var(--ivory);border-radius:8px;padding:10px 12px;font-family:inherit;font-size:14px;" placeholder="مثال: أعتقد إن جدهم واحد، بس ما أعرف اسمه بالضبط. سمعت من كبار العائلة إنهم أبناء عم."></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-solid">إرسال الاقتراح</button>
+        </div>
+        <div id="linkSuggestionMsg"></div>
+      </form>
     </div>
   </div>
 
