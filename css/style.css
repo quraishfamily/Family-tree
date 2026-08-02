@@ -380,3 +380,35 @@ footer.site-footer{
   .node{ min-width:96px; padding:10px 12px 10px; }
   .node-photo{ width:46px; height:46px; }
 }
+
+/* ---------- بطاقات اختيار العائلة (الصفحة الرئيسية) ---------- */
+.family-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));
+  gap:16px;
+  margin-top:16px;
+}
+.family-card{
+  text-decoration:none;
+  text-align:center;
+  padding:28px 16px;
+  cursor:pointer;
+  transition:.15s ease;
+}
+.family-card:hover{
+  border-color:var(--gold);
+  transform:translateY(-3px);
+}
+.family-card h4{
+  font-family:'Aref Ruqaa', serif;
+  font-size:22px;
+  color:var(--gold-light);
+  margin:0;
+}
+.family-back-link{
+  display:inline-block;
+  margin-top:14px;
+  color:var(--muted);
+  font-size:13px;
+  text-decoration:underline;
+}
