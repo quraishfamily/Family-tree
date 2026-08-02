@@ -86,6 +86,62 @@ let allMembersFlat = [];  // كل الأعضاء بجميع العوائل (تُ
 let membersFlat = [];     // الأعضاء المفلترين حسب العائلة الحالية (تُستخدم لعرض الشجرة)
 let currentDetailMember = null;
 
+/* ---------------- مسودة الإضافات السريعة (محلية قبل الإرسال) ---------------- */
+const DRAFT_KEY = `ft_draft_${currentFamily}`;
+let draftMembers = [];
+let draftCounter = 0;
+
+function loadDraft(){
+  try{
+    const saved = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null");
+    if(Array.isArray(saved)){
+      draftMembers = saved;
+      draftCounter = draftMembers.reduce((max, d) => {
+        const n = parseInt(d.localId.replace("d", ""), 10);
+        return isNaN(n) ? max : Math.max(max, n);
+      }, 0);
+    }
+  }catch{ draftMembers = []; }
+}
+function saveDraft(){
+  localStorage.setItem(DRAFT_KEY, JSON.stringify(draftMembers));
+}
+loadDraft();
+function updateDraftBar(){
+  const bar = document.getElementById("draftBar");
+  const count = document.getElementById("draftBarCount");
+  if(draftMembers.length === 0){
+    bar.classList.add("hidden");
+  } else {
+    bar.classList.remove("hidden");
+    count.textContent = `لديك ${draftMembers.length} ${draftMembers.length === 1 ? "إضافة" : "إضافات"} في المسودة`;
+  }
+}
+
+function getRenderList(){
+  const draftAsMembers = draftMembers.map(d => ({
+    id: "draft:" + d.localId,
+    localId: d.localId,
+    parentId: d.parentKey,
+    firstName: d.firstName,
+    fullName: d.fullName,
+    status: d.status,
+    spouseName: d.spouseName,
+    isDraft: true,
+  }));
+  return membersFlat.concat(draftAsMembers);
+}
+
+function resolveFamilyId(parentKey){
+  if(parentKey && parentKey.startsWith("draft:")){
+    const parentLocalId = parentKey.slice(6);
+    const parentDraft = draftMembers.find(d => d.localId === parentLocalId);
+    return parentDraft ? resolveFamilyId(parentDraft.parentKey) : currentFamily;
+  }
+  const realParent = allMembersFlat.find(m => m.id === parentKey);
+  return realParent ? (realParent.familyId || currentFamily) : currentFamily;
+}
+
 const treeContainer = document.getElementById("treeContainer");
 
 const q = query(collection(db, "members"), orderBy("createdAt", "asc"));
@@ -115,7 +171,7 @@ function renderMemberSelects(){
 
 function buildChildrenMap(){
   const map = {};
-  membersFlat.forEach(m => {
+  getRenderList().forEach(m => {
     const pid = m.parentId || "__root__";
     if(!map[pid]) map[pid] = [];
     map[pid].push(m);
@@ -124,7 +180,7 @@ function buildChildrenMap(){
 }
 
 function renderTree(){
-  if(membersFlat.length === 0){
+  if(getRenderList().length === 0){
     treeContainer.innerHTML = `
       <div class="empty-state">
         <h3>الشجرة فاضية حالياً</h3>
@@ -146,11 +202,12 @@ function renderNode(member, childrenMap){
   const li = document.createElement("li");
 
   const node = document.createElement("div");
-  node.className = "node" + (member.status === "deceased" ? " deceased" : "");
+  node.className = "node" + (member.status === "deceased" ? " deceased" : "") + (member.isDraft ? " draft-node" : "");
   node.dataset.id = member.id;
 
   const initials = (member.firstName || "?").trim().charAt(0);
   node.innerHTML = `
+    ${member.isDraft ? `<span class="draft-badge">مسودة</span>` : ""}
     <span class="node-status-dot" title="${member.status === 'deceased' ? 'متوفى' : 'على قيد الحياة'}"></span>
     <div class="node-photo">${member.photoURL ? `<img src="${member.photoURL}" alt="">` : initials}</div>
     <div class="node-name">${escapeHtml(member.firstName || "")}</div>
@@ -217,8 +274,11 @@ function showDetail(member){
   } else {
     addedByRow.style.display = "none";
   }
-  // زر "إضافة أب" يظهر فقط إذا كان الشخص بدون أب مسجّل حالياً في الشجرة
-  document.getElementById("openAddFatherBtn").style.display = member.parentId ? "none" : "inline-block";
+  // زر "إضافة أب" يظهر فقط إذا كان الشخص بدون أب مسجّل حالياً في الشجرة (وليس مسودة)
+  document.getElementById("openAddFatherBtn").style.display = (member.parentId || member.isDraft) ? "none" : "inline-block";
+  document.getElementById("openChainBtn").style.display = member.isDraft ? "none" : "inline-block";
+  document.getElementById("openCorrectionBtn").style.display = member.isDraft ? "none" : "inline-block";
+  document.getElementById("removeDraftWrap").style.display = member.isDraft ? "block" : "none";
   openOverlay("detailOverlay");
 }
 
@@ -322,10 +382,28 @@ document.getElementById("addForm").addEventListener("submit", async (e)=>{
   const fullName = document.getElementById("newFullName").value.trim();
   const status = document.getElementById("newStatus").value;
   const spouseName = document.getElementById("newSpouse").value.trim();
-  const photoFile = document.getElementById("newPhoto").files[0];
 
   if(!firstName || !fullName){ return; }
 
+  // "ابن/ابنة" و"أخ/أخت" تُضاف فوراً لمسودة محلية (بدون اتصال بالخادم) لتسريع بناء عدة أجيال متتالية
+  if(addMode === "child" || addMode === "sibling"){
+    const parentKey = addMode === "child" ? addTargetMember.id : (addTargetMember.parentId || null);
+    draftCounter += 1;
+    draftMembers.push({
+      localId: "d" + draftCounter,
+      parentKey,
+      firstName, fullName, status,
+      spouseName: spouseName || null,
+    });
+    saveDraft();
+    renderTree();
+    updateDraftBar();
+    msgEl.innerHTML = `<div class="msg-ok">أُضيف للمسودة. كمّل الإضافة أو أرسلها من الشريط بالأسفل متى ما انتهيت.</div>`;
+    setTimeout(()=> closeOverlay("addOverlay"), 1100);
+    return;
+  }
+
+  const photoFile = document.getElementById("newPhoto").files[0];
   const submitBtn = e.target.querySelector("button[type=submit]");
   submitBtn.disabled = true;
   submitBtn.textContent = "جارٍ الإرسال...";
@@ -351,18 +429,10 @@ document.getElementById("addForm").addEventListener("submit", async (e)=>{
       submittedAt: serverTimestamp(),
     };
 
-    if(addMode === "child"){
-      payload.parentId = addTargetMember.id;
-      payload.parentFirstName = addTargetMember.firstName;
-    } else if(addMode === "sibling"){
-      payload.parentId = addTargetMember.parentId || null;
-      payload.siblingOfId = addTargetMember.id;
-      payload.siblingOfFirstName = addTargetMember.firstName;
-    } else if(addMode === "father"){
-      payload.parentId = null; // الأب الجديد يصبح جذراً حتى تتم مراجعته وربطه
-      payload.targetChildId = addTargetMember.id;
-      payload.targetChildFirstName = addTargetMember.firstName;
-    }
+    // في هذه النقطة addMode = "father" فقط (child/sibling يُعالَجان أعلاه)
+    payload.parentId = null; // الأب الجديد يصبح جذراً حتى تتم مراجعته وربطه
+    payload.targetChildId = addTargetMember.id;
+    payload.targetChildFirstName = addTargetMember.firstName;
 
     await addDoc(collection(db, "pendingSubmissions"), payload);
 
@@ -373,6 +443,127 @@ document.getElementById("addForm").addEventListener("submit", async (e)=>{
   }finally{
     submitBtn.disabled = false;
     submitBtn.textContent = "إرسال للمراجعة";
+  }
+});
+
+/* ---------------- حذف عنصر من المسودة (مع حذف أبنائه بالمسودة تتابعياً) ---------------- */
+document.getElementById("removeDraftBtn").addEventListener("click", ()=>{
+  if(!currentDetailMember || !currentDetailMember.isDraft) return;
+  const rootLocalId = currentDetailMember.localId;
+  const idsToRemove = new Set([rootLocalId]);
+  let changed = true;
+  while(changed){
+    changed = false;
+    draftMembers.forEach(d=>{
+      const parentLocalId = d.parentKey && d.parentKey.startsWith("draft:") ? d.parentKey.slice(6) : null;
+      if(parentLocalId && idsToRemove.has(parentLocalId) && !idsToRemove.has(d.localId)){
+        idsToRemove.add(d.localId);
+        changed = true;
+      }
+    });
+  }
+  if(idsToRemove.size > 1){
+    if(!confirm(`هذا الشخص له ${idsToRemove.size - 1} إضافة تابعة له بالمسودة، بيتم حذفها كلها. متأكد؟`)) return;
+  }
+  draftMembers = draftMembers.filter(d => !idsToRemove.has(d.localId));
+  saveDraft();
+  renderTree();
+  updateDraftBar();
+  closeOverlay("detailOverlay");
+});
+
+/* ---------------- شريط المسودة: إلغاء الكل / مراجعة وإرسال ---------------- */
+document.getElementById("clearDraftBtn").addEventListener("click", ()=>{
+  if(!confirm("متأكد من إلغاء كل الإضافات الموجودة بالمسودة؟ لا يمكن التراجع.")) return;
+  draftMembers = [];
+  saveDraft();
+  renderTree();
+  updateDraftBar();
+});
+
+function draftParentLabel(d){
+  if(d.parentKey && d.parentKey.startsWith("draft:")){
+    const p = draftMembers.find(x => x.localId === d.parentKey.slice(6));
+    return p ? p.firstName : "(عنصر مسودة)";
+  }
+  const p = allMembersFlat.find(m => m.id === d.parentKey);
+  return p ? p.firstName : "جذر جديد";
+}
+
+document.getElementById("reviewDraftBtn").addEventListener("click", ()=>{
+  const listEl = document.getElementById("draftReviewList");
+  document.getElementById("draftReviewMsg").innerHTML = "";
+  listEl.innerHTML = draftMembers.map(d => `
+    <div class="draft-list-item">
+      <span><strong>${escapeHtml(d.firstName)}</strong> (${escapeHtml(d.fullName || "—")}) — تحت: ${escapeHtml(draftParentLabel(d))}</span>
+      <button class="btn btn-danger" data-remove-review="${d.localId}">حذف</button>
+    </div>
+  `).join("");
+  listEl.querySelectorAll("[data-remove-review]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const localId = btn.dataset.removeReview;
+      const idsToRemove = new Set([localId]);
+      let changed = true;
+      while(changed){
+        changed = false;
+        draftMembers.forEach(d=>{
+          const parentLocalId = d.parentKey && d.parentKey.startsWith("draft:") ? d.parentKey.slice(6) : null;
+          if(parentLocalId && idsToRemove.has(parentLocalId) && !idsToRemove.has(d.localId)){
+            idsToRemove.add(d.localId);
+            changed = true;
+          }
+        });
+      }
+      draftMembers = draftMembers.filter(d => !idsToRemove.has(d.localId));
+      saveDraft();
+      renderTree();
+      updateDraftBar();
+      document.getElementById("reviewDraftBtn").click();
+    });
+  });
+  openOverlay("draftReviewOverlay");
+});
+
+document.getElementById("submitDraftBatchBtn").addEventListener("click", async ()=>{
+  const msgEl = document.getElementById("draftReviewMsg");
+  msgEl.innerHTML = "";
+  if(draftMembers.length === 0){ return; }
+
+  const identity = getIdentity();
+  if(!identity){ ensureIdentity(()=>{}); return; }
+
+  const submitBtn = document.getElementById("submitDraftBatchBtn");
+  submitBtn.disabled = true;
+  submitBtn.textContent = "جارٍ الإرسال...";
+  try{
+    const nodes = draftMembers.map(d => ({
+      localId: d.localId,
+      parentRef: d.parentKey,
+      familyId: resolveFamilyId(d.parentKey),
+      firstName: d.firstName,
+      fullName: d.fullName,
+      status: d.status,
+      spouseName: d.spouseName || null,
+    }));
+    await addDoc(collection(db, "pendingSubmissions"), {
+      type: "draftBatch",
+      nodes,
+      submitterName: identity.name,
+      submitterEmail: identity.email,
+      submitterPhone: identity.phone,
+      submittedAt: serverTimestamp(),
+    });
+    draftMembers = [];
+    saveDraft();
+    renderTree();
+    updateDraftBar();
+    msgEl.innerHTML = `<div class="msg-ok">تم إرسال كل الإضافات (${nodes.length}) كطلب واحد، بانتظار مراجعة المسؤول.</div>`;
+    setTimeout(()=> closeOverlay("draftReviewOverlay"), 1800);
+  }catch(err){
+    msgEl.innerHTML = `<div class="msg-err">حدث خطأ: ${escapeHtml(err.message)}</div>`;
+  }finally{
+    submitBtn.disabled = false;
+    submitBtn.textContent = "إرسال الكل للمراجعة";
   }
 });
 
@@ -616,3 +807,4 @@ restrictToSingleWord(document.getElementById("rootFirstName"));
 
 /* ---------------- تشغيل أولي ---------------- */
 renderIdentityChip();
+updateDraftBar();
