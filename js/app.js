@@ -68,9 +68,22 @@ onSnapshot(q, (snap) => {
   membersFlat = [];
   snap.forEach(d => membersFlat.push({ id: d.id, ...d.data() }));
   renderTree();
+  renderMemberSelects();
 }, (err) => {
   treeContainer.innerHTML = `<div class="empty-state"><h3>تعذّر تحميل الشجرة</h3><p>${escapeHtml(err.message)}</p></div>`;
 });
+
+function renderMemberSelects(){
+  const options = membersFlat
+    .map(m => `<option value="${m.id}">${escapeHtml(m.firstName)} — ${escapeHtml(m.fullName || "")}</option>`)
+    .join("");
+  ["linkPersonA", "linkPersonB"].forEach(id=>{
+    const sel = document.getElementById(id);
+    const current = sel.value;
+    sel.innerHTML = `<option value="">— اختر شخصاً —</option>` + options;
+    sel.value = current;
+  });
+}
 
 function buildChildrenMap(){
   const map = {};
@@ -399,6 +412,111 @@ document.getElementById("submitChainBtn").addEventListener("click", async ()=>{
   }
 });
 
+/* ---------------- إضافة فرع عائلي جديد غير متصل ---------------- */
+document.getElementById("openNewRootBtn").addEventListener("click", ()=>{
+  ensureIdentity(()=>{
+    document.getElementById("newRootForm").reset();
+    document.getElementById("newRootMsg").innerHTML = "";
+    openOverlay("newRootOverlay");
+  });
+});
+
+document.getElementById("newRootForm").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const msgEl = document.getElementById("newRootMsg");
+  msgEl.innerHTML = "";
+
+  const identity = getIdentity();
+  if(!identity){ ensureIdentity(()=>{}); return; }
+
+  const firstName = document.getElementById("rootFirstName").value.trim();
+  const fullName = document.getElementById("rootFullName").value.trim();
+  const status = document.getElementById("rootStatus").value;
+  const spouseName = document.getElementById("rootSpouse").value.trim();
+  if(!firstName || !fullName){ return; }
+
+  const submitBtn = e.target.querySelector("button[type=submit]");
+  submitBtn.disabled = true;
+  submitBtn.textContent = "جارٍ الإرسال...";
+  try{
+    await addDoc(collection(db, "pendingSubmissions"), {
+      type: "newRoot",
+      parentId: null,
+      firstName, fullName, status,
+      spouseName: spouseName || null,
+      photoURL: null,
+      submitterName: identity.name,
+      submitterEmail: identity.email,
+      submitterPhone: identity.phone,
+      submittedAt: serverTimestamp(),
+    });
+    msgEl.innerHTML = `<div class="msg-ok">تم إرسال طلبك، بانتظار مراجعة المسؤول قبل ظهوره كفرع مستقل بالشجرة.</div>`;
+    setTimeout(()=> closeOverlay("newRootOverlay"), 1600);
+  }catch(err){
+    msgEl.innerHTML = `<div class="msg-err">حدث خطأ: ${escapeHtml(err.message)}</div>`;
+  }finally{
+    submitBtn.disabled = false;
+    submitBtn.textContent = "إرسال للمراجعة";
+  }
+});
+
+/* ---------------- اقتراح ربط بين شخصين ---------------- */
+document.getElementById("openLinkSuggestionBtn").addEventListener("click", ()=>{
+  ensureIdentity(()=>{
+    document.getElementById("linkSuggestionForm").reset();
+    document.getElementById("linkSuggestionMsg").innerHTML = "";
+    openOverlay("linkSuggestionOverlay");
+  });
+});
+
+document.getElementById("linkSuggestionForm").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const msgEl = document.getElementById("linkSuggestionMsg");
+  msgEl.innerHTML = "";
+
+  const identity = getIdentity();
+  if(!identity){ ensureIdentity(()=>{}); return; }
+
+  const personAId = document.getElementById("linkPersonA").value;
+  const personBId = document.getElementById("linkPersonB").value;
+  const note = document.getElementById("linkNote").value.trim();
+
+  if(!personAId || !personBId){
+    msgEl.innerHTML = `<div class="msg-err">اختر الشخصين قبل الإرسال.</div>`;
+    return;
+  }
+  if(personAId === personBId){
+    msgEl.innerHTML = `<div class="msg-err">اختر شخصين مختلفين.</div>`;
+    return;
+  }
+
+  const personA = membersFlat.find(m => m.id === personAId);
+  const personB = membersFlat.find(m => m.id === personBId);
+
+  const submitBtn = e.target.querySelector("button[type=submit]");
+  submitBtn.disabled = true;
+  submitBtn.textContent = "جارٍ الإرسال...";
+  try{
+    await addDoc(collection(db, "pendingSubmissions"), {
+      type: "linkSuggestion",
+      personAId, personAFirstName: personA ? personA.firstName : "",
+      personBId, personBFirstName: personB ? personB.firstName : "",
+      note: note || null,
+      submitterName: identity.name,
+      submitterEmail: identity.email,
+      submitterPhone: identity.phone,
+      submittedAt: serverTimestamp(),
+    });
+    msgEl.innerHTML = `<div class="msg-ok">تم إرسال اقتراحك، بينتظر مراجعة الأدمن.</div>`;
+    setTimeout(()=> closeOverlay("linkSuggestionOverlay"), 1600);
+  }catch(err){
+    msgEl.innerHTML = `<div class="msg-err">حدث خطأ: ${escapeHtml(err.message)}</div>`;
+  }finally{
+    submitBtn.disabled = false;
+    submitBtn.textContent = "إرسال الاقتراح";
+  }
+});
+
 /* ---------------- تقييد حقل "الاسم الأول" بكلمة واحدة فقط ---------------- */
 function restrictToSingleWord(input){
   input.addEventListener("input", ()=>{
@@ -406,6 +524,7 @@ function restrictToSingleWord(input){
   });
 }
 restrictToSingleWord(document.getElementById("newFirstName"));
+restrictToSingleWord(document.getElementById("rootFirstName"));
 
 /* ---------------- تشغيل أولي ---------------- */
 renderIdentityChip();
