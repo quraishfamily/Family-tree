@@ -18,6 +18,10 @@
   </header>
 
   <div class="toolbar">
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="بحث بالاسم...">
+      <div class="search-results hidden" id="searchResults"></div>
+    </div>
     <button class="btn" id="expandAllBtn">توسيع الكل</button>
     <button class="btn" id="collapseAllBtn">طي الكل</button>
     <button class="btn btn-ghost" id="openNewRootBtn">إضافة فرع عائلي جديد (غير متصل)</button>
@@ -127,6 +131,7 @@
         <div class="field">
           <label>الاسم الرباعي كامل</label>
           <input type="text" id="newFullName" required placeholder="مثال: خالد أحمد محمد الفلاني">
+          <div id="newFullNameWarning" class="dup-warning hidden"></div>
         </div>
         <div class="field">
           <label>الجنس</label>
@@ -205,6 +210,7 @@
         <div class="field">
           <label>الاسم الرباعي كامل</label>
           <input type="text" id="rootFullName" required placeholder="مثال: خالد أحمد محمد الفلاني">
+          <div id="rootFullNameWarning" class="dup-warning hidden"></div>
         </div>
         <div class="field">
           <label>الجنس</label>
