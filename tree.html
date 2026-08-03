@@ -64,10 +64,16 @@
       <div class="detail-row"><span>الحالة</span><span id="detailStatus">—</span></div>
       <div class="detail-row" id="detailSpouseRow"><span>الزوج/الزوجة</span><span id="detailSpouse">—</span></div>
       <div class="detail-row" id="detailAddedByRow"><span>أُضيف بواسطة</span><span id="detailAddedBy">—</span></div>
+      <p class="hint" id="lineageStopNote" style="display:none;color:#f0a89f;background:rgba(193,85,74,.1);padding:10px;border-radius:8px;margin-top:10px;">
+        🔒 النسب يتوقف هنا — أبناء البنت ينتسبون لعائلة زوجها. لو كان زوجها من نفس العائلة، اربطه بالزر بالأسفل حتى تقدر تضيف أبناءهما تحته.
+      </p>
       <div class="form-actions" style="flex-wrap:wrap;">
         <button class="btn btn-solid" id="openAddChildBtn">إضافة ابن / ابنة</button>
         <button class="btn" id="openAddSiblingBtn">إضافة أخ / أخت</button>
         <button class="btn" id="openAddFatherBtn">إضافة أب</button>
+      </div>
+      <div class="form-actions" id="linkSpouseWrap" style="display:none;">
+        <button class="btn btn-ghost" id="openLinkSpouseBtn" style="width:100%;">ربط الزوج (لو كان من نفس العائلة)</button>
       </div>
       <div class="form-actions">
         <button class="btn btn-ghost" id="openChainBtn" style="width:100%;">ربط قريب عبر جد مشترك (سلسلة كاملة)</button>
@@ -116,6 +122,14 @@
         <div class="field">
           <label>الاسم الرباعي كامل</label>
           <input type="text" id="newFullName" required placeholder="مثال: خالد أحمد محمد الفلاني">
+        </div>
+        <div class="field">
+          <label>الجنس</label>
+          <select id="newGender" required>
+            <option value="">— اختر —</option>
+            <option value="male">ذكر</option>
+            <option value="female">أنثى</option>
+          </select>
         </div>
         <div class="field">
           <label>الحالة</label>
@@ -188,6 +202,14 @@
           <input type="text" id="rootFullName" required placeholder="مثال: خالد أحمد محمد الفلاني">
         </div>
         <div class="field">
+          <label>الجنس</label>
+          <select id="rootGender" required>
+            <option value="">— اختر —</option>
+            <option value="male">ذكر</option>
+            <option value="female">أنثى</option>
+          </select>
+        </div>
+        <div class="field">
           <label>الحالة</label>
           <select id="rootStatus">
             <option value="alive">على قيد الحياة</option>
@@ -255,6 +277,28 @@
           <button type="submit" class="btn btn-solid">إرسال البلاغ</button>
         </div>
         <div id="correctionMsg"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- نافذة ربط الزوج من نفس العائلة -->
+  <div class="overlay hidden" id="linkSpouseOverlay">
+    <div class="modal">
+      <button class="close" data-close="linkSpouseOverlay">×</button>
+      <h3>ربط الزوج</h3>
+      <p class="hint" id="linkSpouseHint">ربط زوج لـ: —</p>
+      <form id="linkSpouseForm">
+        <div class="field">
+          <label>اختر الزوج من أفراد نفس العائلة</label>
+          <select id="linkSpousePerson" required></select>
+        </div>
+        <p class="hint">
+          لو الزوج مو مسجّل بالشجرة بعد، أضفه أول كفرع جديد أو عبر "ربط قريب عبر جد مشترك"، وبعدها رجع لهذه الخطوة.
+        </p>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-solid">إرسال طلب الربط</button>
+        </div>
+        <div id="linkSpouseMsg"></div>
       </form>
     </div>
   </div>
