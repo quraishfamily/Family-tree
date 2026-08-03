@@ -84,6 +84,14 @@
           <div class="field"><label>الاسم الأول</label><input type="text" id="directFirstName" required></div>
           <div class="field"><label>الاسم الرباعي كامل</label><input type="text" id="directFullName" required></div>
           <div class="field">
+            <label>الجنس</label>
+            <select id="directGender" required>
+              <option value="">— اختر —</option>
+              <option value="male">ذكر</option>
+              <option value="female">أنثى</option>
+            </select>
+          </div>
+          <div class="field">
             <label>الحالة</label>
             <select id="directStatus">
               <option value="alive">على قيد الحياة</option>
@@ -118,6 +126,14 @@
         </div>
         <div class="field"><label>الاسم الأول</label><input type="text" id="editFirstName" required></div>
         <div class="field"><label>الاسم الرباعي</label><input type="text" id="editFullName" required></div>
+        <div class="field">
+          <label>الجنس</label>
+          <select id="editGender">
+            <option value="">— غير محدد —</option>
+            <option value="male">ذكر</option>
+            <option value="female">أنثى</option>
+          </select>
+        </div>
         <div class="field">
           <label>الحالة</label>
           <select id="editStatus">
