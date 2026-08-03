@@ -10,6 +10,7 @@ const IDENTITY_KEY = "ft_identity_v1";
 const REQUIRED_IDS = [
   "identityForm", "identityChip", "detailOverlay", "addOverlay",
   "treeContainer", "familyTitle", "draftBar", "draftReviewOverlay",
+  "linkSpouseOverlay", "lineageStopNote",
 ];
 const missingIds = REQUIRED_IDS.filter(id => !document.getElementById(id));
 if(missingIds.length > 0){
@@ -142,6 +143,7 @@ function getRenderList(){
     parentId: d.parentKey,
     firstName: d.firstName,
     fullName: d.fullName,
+    gender: d.gender,
     status: d.status,
     spouseName: d.spouseName,
     isDraft: true,
@@ -237,7 +239,14 @@ function renderNode(member, childrenMap){
   });
   node.querySelector(".node-add").addEventListener("click", (e)=>{
     e.stopPropagation();
-    openAddRelative("child", member);
+    const isFemale = member.gender === "female";
+    const familySpouse = isFemale && !member.isDraft ? findFamilySpouse(member) : null;
+    const lineageBlocked = isFemale && !member.isDraft && !familySpouse;
+    if(lineageBlocked){
+      showDetail(member); // يفتح التفاصيل ليشوف ملاحظة توقف النسب وخيار ربط الزوج
+      return;
+    }
+    openAddRelative("child", familySpouse || member);
   });
 
   li.appendChild(node);
@@ -272,6 +281,16 @@ document.getElementById("collapseAllBtn").addEventListener("click", ()=>{
 });
 
 /* ---------------- تفاصيل الشخص ---------------- */
+let addChildRedirectTarget = null; // لو الشخص أنثى ولها زوج بنفس العائلة، نوجّه "إضافة ابن/ابنة" لزوجها
+
+function findFamilySpouse(member){
+  if(!member.spouseId) return null;
+  const spouse = allMembersFlat.find(m => m.id === member.spouseId);
+  if(!spouse) return null;
+  if(member.familyId && spouse.familyId !== member.familyId) return null;
+  return spouse;
+}
+
 function showDetail(member){
   currentDetailMember = member;
   document.getElementById("detailName").textContent = member.firstName || "";
@@ -291,6 +310,29 @@ function showDetail(member){
   } else {
     addedByRow.style.display = "none";
   }
+
+  // قاعدة توقف النسب عند الأنثى: ما نسمح بإضافة أبناء مباشرة تحت أنثى إلا لو مربوطة بزوج من نفس العائلة
+  addChildRedirectTarget = null;
+  const isFemale = member.gender === "female";
+  const familySpouse = isFemale && !member.isDraft ? findFamilySpouse(member) : null;
+  const lineageBlocked = isFemale && !member.isDraft && !familySpouse;
+
+  document.getElementById("lineageStopNote").style.display = lineageBlocked ? "block" : "none";
+  document.getElementById("linkSpouseWrap").style.display = (isFemale && !member.isDraft) ? "block" : "none";
+
+  const addChildBtn = document.getElementById("openAddChildBtn");
+  if(lineageBlocked){
+    addChildBtn.style.display = "none";
+  } else {
+    addChildBtn.style.display = "inline-block";
+    if(familySpouse){
+      addChildBtn.textContent = `إضافة ابن/ابنة (تحت زوجها: ${familySpouse.firstName})`;
+      addChildRedirectTarget = familySpouse;
+    } else {
+      addChildBtn.textContent = "إضافة ابن / ابنة";
+    }
+  }
+
   // زر "إضافة أب" يظهر فقط إذا كان الشخص بدون أب مسجّل حالياً في الشجرة (وليس مسودة)
   document.getElementById("openAddFatherBtn").style.display = (member.parentId || member.isDraft) ? "none" : "inline-block";
   document.getElementById("openChainBtn").style.display = member.isDraft ? "none" : "inline-block";
@@ -301,7 +343,7 @@ function showDetail(member){
 
 document.getElementById("openAddChildBtn").addEventListener("click", ()=>{
   closeOverlay("detailOverlay");
-  openAddRelative("child", currentDetailMember);
+  openAddRelative("child", addChildRedirectTarget || currentDetailMember);
 });
 document.getElementById("openAddSiblingBtn").addEventListener("click", ()=>{
   closeOverlay("detailOverlay");
@@ -364,6 +406,65 @@ document.getElementById("correctionForm").addEventListener("submit", async (e)=>
   }
 });
 
+document.getElementById("openLinkSpouseBtn").addEventListener("click", ()=>{
+  ensureIdentity(()=>{
+    closeOverlay("detailOverlay");
+    document.getElementById("linkSpouseHint").textContent = `ربط زوج لـ: ${currentDetailMember.firstName}`;
+    const sel = document.getElementById("linkSpousePerson");
+    const candidates = allMembersFlat.filter(m =>
+      m.gender === "male" &&
+      m.familyId === currentDetailMember.familyId &&
+      m.id !== currentDetailMember.id
+    );
+    sel.innerHTML = `<option value="">— اختر —</option>` + candidates.map(m =>
+      `<option value="${m.id}">${escapeHtml(m.firstName)} — ${escapeHtml(m.fullName || "")}</option>`
+    ).join("");
+    document.getElementById("linkSpouseMsg").innerHTML = "";
+    openOverlay("linkSpouseOverlay");
+  });
+});
+
+document.getElementById("linkSpouseForm").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const msgEl = document.getElementById("linkSpouseMsg");
+  msgEl.innerHTML = "";
+
+  const identity = getIdentity();
+  if(!identity){ ensureIdentity(()=>{}); return; }
+
+  const spouseId = document.getElementById("linkSpousePerson").value;
+  if(!spouseId){
+    msgEl.innerHTML = `<div class="msg-err">اختر الزوج قبل الإرسال.</div>`;
+    return;
+  }
+  const spouse = allMembersFlat.find(m => m.id === spouseId);
+
+  const submitBtn = e.target.querySelector("button[type=submit]");
+  submitBtn.disabled = true;
+  submitBtn.textContent = "جارٍ الإرسال...";
+  try{
+    await addDoc(collection(db, "pendingSubmissions"), {
+      type: "spouseLink",
+      familyId: currentDetailMember.familyId || currentFamily,
+      targetMemberId: currentDetailMember.id,
+      targetMemberFirstName: currentDetailMember.firstName,
+      spouseMemberId: spouseId,
+      spouseMemberFirstName: spouse ? spouse.firstName : "",
+      submitterName: identity.name,
+      submitterEmail: identity.email,
+      submitterPhone: identity.phone,
+      submittedAt: serverTimestamp(),
+    });
+    msgEl.innerHTML = `<div class="msg-ok">تم إرسال طلب الربط، بيراجعه الأدمن.</div>`;
+    setTimeout(()=> closeOverlay("linkSpouseOverlay"), 1600);
+  }catch(err){
+    msgEl.innerHTML = `<div class="msg-err">حدث خطأ: ${escapeHtml(err.message)}</div>`;
+  }finally{
+    submitBtn.disabled = false;
+    submitBtn.textContent = "إرسال طلب الربط";
+  }
+});
+
 /* ---------------- إضافة فرد جديد (يذهب لمراجعة الأدمن) ---------------- */
 let addMode = "child";       // 'child' | 'sibling' | 'father'
 let addTargetMember = null;  // الشخص اللي ضغطنا على اسمه لفتح النافذة
@@ -383,6 +484,13 @@ function openAddRelative(mode, targetMember){
     document.getElementById("addParentHint").textContent = labels.hint(targetMember.firstName);
     document.getElementById("addForm").reset();
     document.getElementById("addFormMsg").innerHTML = "";
+    const genderField = document.getElementById("newGender").closest(".field");
+    if(mode === "father"){
+      document.getElementById("newGender").value = "male";
+      genderField.style.display = "none";
+    } else {
+      genderField.style.display = "block";
+    }
     openOverlay("addOverlay");
   });
 }
@@ -397,10 +505,11 @@ document.getElementById("addForm").addEventListener("submit", async (e)=>{
 
   const firstName = document.getElementById("newFirstName").value.trim();
   const fullName = document.getElementById("newFullName").value.trim();
+  const gender = document.getElementById("newGender").value;
   const status = document.getElementById("newStatus").value;
   const spouseName = document.getElementById("newSpouse").value.trim();
 
-  if(!firstName || !fullName){ return; }
+  if(!firstName || !fullName || !gender){ return; }
 
   // "ابن/ابنة" و"أخ/أخت" تُضاف فوراً لمسودة محلية (بدون اتصال بالخادم) لتسريع بناء عدة أجيال متتالية
   if(addMode === "child" || addMode === "sibling"){
@@ -409,7 +518,7 @@ document.getElementById("addForm").addEventListener("submit", async (e)=>{
     draftMembers.push({
       localId: "d" + draftCounter,
       parentKey,
-      firstName, fullName, status,
+      firstName, fullName, gender, status,
       spouseName: spouseName || null,
     });
     saveDraft();
@@ -437,7 +546,7 @@ document.getElementById("addForm").addEventListener("submit", async (e)=>{
     const payload = {
       type: addMode,
       familyId: addTargetMember.familyId || currentFamily,
-      firstName, fullName, status,
+      firstName, fullName, gender, status,
       spouseName: spouseName || null,
       photoURL,
       submitterName: identity.name,
@@ -546,6 +655,12 @@ document.getElementById("submitDraftBatchBtn").addEventListener("click", async (
   msgEl.innerHTML = "";
   if(draftMembers.length === 0){ return; }
 
+  const invalidDrafts = draftMembers.filter(d => !d.firstName || !d.fullName);
+  if(invalidDrafts.length > 0){
+    msgEl.innerHTML = `<div class="msg-err">فيه ${invalidDrafts.length} عنصر بالمسودة بدون اسم صالح (ربما من مسودة قديمة). اضغط "حذف" على العناصر الناقصة بالقائمة فوق، أو أعد كتابتها من جديد قبل الإرسال.</div>`;
+    return;
+  }
+
   const identity = getIdentity();
   if(!identity){ ensureIdentity(()=>{}); return; }
 
@@ -559,6 +674,7 @@ document.getElementById("submitDraftBatchBtn").addEventListener("click", async (
       familyId: resolveFamilyId(d.parentKey),
       firstName: d.firstName,
       fullName: d.fullName,
+      gender: d.gender || null,
       status: d.status,
       spouseName: d.spouseName || null,
     }));
@@ -629,6 +745,14 @@ function addChainStep(){
     <div class="field"><label>الاسم الأول</label><input type="text" class="chainFirstName"></div>
     <div class="field"><label>الاسم الرباعي</label><input type="text" class="chainFullName"></div>
     <div class="field">
+      <label>الجنس</label>
+      <select class="chainGender">
+        <option value="">— اختر —</option>
+        <option value="male">ذكر</option>
+        <option value="female">أنثى</option>
+      </select>
+    </div>
+    <div class="field">
       <label>الحالة</label>
       <select class="chainStatus">
         <option value="alive">على قيد الحياة</option>
@@ -665,16 +789,26 @@ document.getElementById("submitChainBtn").addEventListener("click", async ()=>{
   for(const el of stepEls){
     const firstName = el.querySelector(".chainFirstName").value.trim();
     const fullName = el.querySelector(".chainFullName").value.trim();
-    if(!firstName || !fullName){
-      msgEl.innerHTML = `<div class="msg-err">أكمل الاسم الأول والرباعي لكل حلقة قبل الإرسال.</div>`;
+    const gender = el.querySelector(".chainGender").value;
+    if(!firstName || !fullName || !gender){
+      msgEl.innerHTML = `<div class="msg-err">أكمل الاسم الأول والرباعي والجنس لكل حلقة قبل الإرسال.</div>`;
       return;
     }
     steps.push({
       relation: el.querySelector(".chainRelation").value,
-      firstName, fullName,
+      firstName, fullName, gender,
       status: el.querySelector(".chainStatus").value,
       spouseName: el.querySelector(".chainSpouse").value.trim() || null,
     });
+  }
+
+  // تنبيه غير مانع: النسب عادة يتوقف عند الأنثى، تأكد إن هذا مقصود
+  const hasFemaleWithChildAfter = steps.some((s, i) => {
+    if(i === 0) return false;
+    return steps[i-1].gender === "female" && s.relation === "child";
+  });
+  if(hasFemaleWithChildAfter){
+    if(!confirm("تنبيه: فيه حلقة أنثى وبعدها ابن/ابنة مباشرة — عادة النسب يتوقف عند الأنثى إلا لو زوجها من نفس العائلة. متأكد إنك تبي تكمل؟")) return;
   }
 
   const identity = getIdentity();
@@ -726,9 +860,10 @@ document.getElementById("newRootForm").addEventListener("submit", async (e)=>{
   const familyId = currentFamily === "all" ? document.getElementById("rootFamily").value : currentFamily;
   const firstName = document.getElementById("rootFirstName").value.trim();
   const fullName = document.getElementById("rootFullName").value.trim();
+  const gender = document.getElementById("rootGender").value;
   const status = document.getElementById("rootStatus").value;
   const spouseName = document.getElementById("rootSpouse").value.trim();
-  if(!firstName || !fullName){ return; }
+  if(!firstName || !fullName || !gender){ return; }
 
   const submitBtn = e.target.querySelector("button[type=submit]");
   submitBtn.disabled = true;
@@ -738,7 +873,7 @@ document.getElementById("newRootForm").addEventListener("submit", async (e)=>{
       type: "newRoot",
       familyId,
       parentId: null,
-      firstName, fullName, status,
+      firstName, fullName, gender, status,
       spouseName: spouseName || null,
       photoURL: null,
       submitterName: identity.name,
