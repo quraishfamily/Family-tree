@@ -6,7 +6,7 @@
 <title>لوحة تحكم الأدمن — شجرة العائلة</title>
 <link rel="stylesheet" href="css/style.css">
 <style>
-  .admin-wrap{ max-width:880px; margin:0 auto; padding:30px 18px 80px; }
+  .admin-wrap{ max-width:1500px; margin:0 auto; padding:30px 18px 80px; }
   .tabs{ display:flex; gap:8px; margin-bottom:24px; flex-wrap:wrap; }
   .tab-btn{ background:var(--navy-panel); border:1px solid var(--navy-line); color:var(--muted);
     padding:10px 18px; border-radius:10px; font-size:14px; }
@@ -24,7 +24,21 @@
   .table th, .table td{ text-align:right; padding:10px; border-bottom:1px solid var(--navy-line); }
   .table th{ color:var(--muted); font-weight:500; }
   .login-wrap{ max-width:380px; margin:80px auto; }
-  .admin-tree-wrap{ overflow-x:auto; padding:20px 10px 60px; }
+  .admin-tree-wrap{
+    position:relative;
+    overflow:hidden;
+    height:75vh;
+    min-height:460px;
+    border:1px solid var(--navy-line);
+    border-radius:var(--radius);
+    touch-action:none;
+  }
+  #adminTreeContainer{
+    position:absolute;
+    top:0; left:0;
+    transform-origin:0 0;
+    will-change:transform;
+  }
   .admin-tree-wrap .node{ cursor:pointer; }
   .admin-tree-wrap .node[draggable="true"]:active{ opacity:.7; }
   .admin-legend{ display:flex; gap:18px; flex-wrap:wrap; font-size:13px; color:var(--muted); margin-bottom:10px; }
@@ -71,6 +85,11 @@
       </div>
       <div class="admin-tree-wrap">
         <div id="adminTreeContainer"></div>
+        <div class="zoom-controls">
+          <button class="btn zoom-btn" id="adminZoomInBtn" title="تقريب">+</button>
+          <button class="btn zoom-btn" id="adminZoomOutBtn" title="تبعيد">−</button>
+          <button class="btn zoom-btn" id="adminZoomResetBtn" title="ملائمة الشجرة للشاشة">⤢</button>
+        </div>
       </div>
     </div>
 
