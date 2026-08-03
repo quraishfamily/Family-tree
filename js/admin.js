@@ -4,6 +4,7 @@ import {
   ref, uploadBytes, getDownloadURL,
   signInWithEmailAndPassword, signOut, onAuthStateChanged
 } from "./firebase-init.js";
+import { initPanZoom } from "./pan-zoom.js";
 
 const FAMILIES = {
   quraish:  "آل قريش",
@@ -44,6 +45,10 @@ onAuthStateChanged(auth, (user)=>{
     loginView.style.display = "none";
     dashboardView.style.display = "block";
     document.getElementById("whoAmI").textContent = `مسجّل الدخول: ${user.email}`;
+    if(adminPanZoomController){
+      adminHasFitOnce = true;
+      adminPanZoomController.fit();
+    }
   } else {
     loginView.style.display = "block";
     dashboardView.style.display = "none";
@@ -549,6 +554,17 @@ onSnapshot(collection(db, "pendingSubmissions"), (snap)=>{
 
 /* ==================== الشجرة التفاعلية للأدمن ==================== */
 const adminTreeContainer = document.getElementById("adminTreeContainer");
+let adminPanZoomController = null;
+let adminHasFitOnce = false;
+
+function ensureAdminPanZoom(){
+  if(!adminPanZoomController){
+    adminPanZoomController = initPanZoom(document.querySelector(".admin-tree-wrap"), adminTreeContainer);
+    document.getElementById("adminZoomInBtn").addEventListener("click", ()=> adminPanZoomController.zoomIn());
+    document.getElementById("adminZoomOutBtn").addEventListener("click", ()=> adminPanZoomController.zoomOut());
+    document.getElementById("adminZoomResetBtn").addEventListener("click", ()=> adminPanZoomController.reset());
+  }
+}
 
 function buildAdminGhosts(){
   const ghosts = [];
@@ -651,6 +667,12 @@ function renderAdminTree(){
   roots.forEach(r => ul.appendChild(renderAdminNode(r, childrenMap)));
   adminTreeContainer.innerHTML = "";
   adminTreeContainer.appendChild(ul);
+
+  ensureAdminPanZoom();
+  if(!adminHasFitOnce && adminTreeContainer.clientWidth > 0){
+    adminHasFitOnce = true;
+    adminPanZoomController.fit();
+  }
 }
 
 function renderAdminNode(member, childrenMap){
