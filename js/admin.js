@@ -74,6 +74,7 @@ onSnapshot(query(collection(db, "members"), orderBy("createdAt","asc")), (snap)=
   snap.forEach(d => membersFlat.push({ id: d.id, ...d.data() }));
   renderManageList();
   renderParentSelect();
+  renderAdminTree();
 });
 
 function genderLabel(g){
@@ -96,11 +97,49 @@ function renderParentSelect(){
   sel.value = current;
 }
 
+async function approveSingleSubmission(item){
+  const baseFields = {
+    firstName: item.firstName,
+    fullName: item.fullName,
+    familyId: item.familyId || null,
+    gender: item.gender || null,
+    status: item.status,
+    spouseName: item.spouseName || null,
+    photoURL: item.photoURL || null,
+    addedByName: item.submitterName || null,
+    createdAt: serverTimestamp(),
+    approvedBy: auth.currentUser.email,
+  };
+
+  if(item.type === "father"){
+    const targetChild = membersFlat.find(m => m.id === item.targetChildId);
+    const alreadyHasParent = targetChild && targetChild.parentId;
+    if(alreadyHasParent){
+      const proceed = confirm(
+        `تنبيه: "${targetChild.firstName}" صار له أب مسجّل في الشجرة بالفعل.\n` +
+        `اضغط "موافق" لإضافة "${item.firstName}" كجذر منفصل بدون ربطه بأحد، أو "إلغاء" لتجاهل الطلب.`
+      );
+      if(!proceed) return;
+      await addDoc(collection(db, "members"), { ...baseFields, parentId: null });
+    } else {
+      const newFatherRef = await addDoc(collection(db, "members"), { ...baseFields, parentId: null });
+      await updateDoc(doc(db, "members", item.targetChildId), { parentId: newFatherRef.id });
+    }
+  } else {
+    await addDoc(collection(db, "members"), { ...baseFields, parentId: item.parentId || null });
+  }
+
+  await deleteDoc(doc(db, "pendingSubmissions", item.id));
+}
+
 /* ---------------- طلبات الإضافة المعلّقة ---------------- */
 const panelPending = document.getElementById("panel-pending");
+let pendingItemsGlobal = [];
 onSnapshot(collection(db, "pendingSubmissions"), (snap)=>{
   const items = [];
   snap.forEach(d => items.push({ id: d.id, ...d.data() }));
+  pendingItemsGlobal = items;
+  renderAdminTree();
   document.getElementById("pendingCount").textContent = items.length ? `(${items.length})` : "";
 
   if(items.length === 0){
@@ -327,40 +366,7 @@ onSnapshot(collection(db, "pendingSubmissions"), (snap)=>{
       const item = items.find(i=>i.id === id);
       btn.disabled = true; btn.textContent = "جارٍ النشر...";
       try{
-        const baseFields = {
-          firstName: item.firstName,
-          fullName: item.fullName,
-          familyId: item.familyId || null,
-          gender: item.gender || null,
-          status: item.status,
-          spouseName: item.spouseName || null,
-          photoURL: item.photoURL || null,
-          addedByName: item.submitterName || null,
-          createdAt: serverTimestamp(),
-          approvedBy: auth.currentUser.email,
-        };
-
-        if(item.type === "father"){
-          // تحقّق هل الشخص المستهدف صار له أب مسجّل بين وقت الطلب والآن
-          const targetChild = membersFlat.find(m => m.id === item.targetChildId);
-          const alreadyHasParent = targetChild && targetChild.parentId;
-          if(alreadyHasParent){
-            const proceed = confirm(
-              `تنبيه: "${targetChild.firstName}" صار له أب مسجّل في الشجرة بالفعل.\n` +
-              `اضغط "موافق" لإضافة "${item.firstName}" كجذر منفصل بدون ربطه بأحد، أو "إلغاء" لتجاهل الطلب.`
-            );
-            if(!proceed){ btn.disabled = false; btn.textContent = "قبول ونشر"; return; }
-            await addDoc(collection(db, "members"), { ...baseFields, parentId: null });
-          } else {
-            const newFatherRef = await addDoc(collection(db, "members"), { ...baseFields, parentId: null });
-            await updateDoc(doc(db, "members", item.targetChildId), { parentId: newFatherRef.id });
-          }
-        } else {
-          // child أو sibling: parentId محسوب ومخزّن مسبقاً وقت الإرسال
-          await addDoc(collection(db, "members"), { ...baseFields, parentId: item.parentId || null });
-        }
-
-        await deleteDoc(doc(db, "pendingSubmissions", id));
+        await approveSingleSubmission(item);
       }catch(err){
         alert("حدث خطأ: " + err.message);
         btn.disabled = false; btn.textContent = "قبول ونشر";
@@ -531,6 +537,176 @@ onSnapshot(collection(db, "pendingSubmissions"), (snap)=>{
       }
     });
   });
+});
+
+/* ==================== الشجرة التفاعلية للأدمن ==================== */
+const adminTreeContainer = document.getElementById("adminTreeContainer");
+
+function buildAdminGhosts(){
+  // نعرض بالشجرة فقط الأنواع اللي لها مكان واضح ومباشر (ابن/ابنة، أخ/أخت، فرع جديد)
+  // الأنواع الأكثر تعقيداً (أب، سلسلة، دفعة، ربط زوج، تصحيح) تبقى بتبويب "طلبات الإضافة"
+  return pendingItemsGlobal
+    .filter(item => item.type === "child" || item.type === "sibling" || item.type === "newRoot")
+    .map(item => ({
+      id: "pending:" + item.id,
+      pendingId: item.id,
+      pendingType: item.type,
+      parentId: item.type === "newRoot" ? null : (item.parentId || null),
+      firstName: item.firstName,
+      fullName: item.fullName,
+      gender: item.gender,
+      status: item.status,
+      spouseName: item.spouseName,
+      familyId: item.familyId,
+      isGhost: true,
+    }));
+}
+
+function renderAdminTree(){
+  if(!adminTreeContainer) return;
+  const combined = membersFlat.concat(buildAdminGhosts());
+  if(combined.length === 0){
+    adminTreeContainer.innerHTML = `<div class="empty-state"><h3>لا يوجد أفراد بعد</h3><p>أضف أول فرد من تبويب "إضافة فرد مباشرة".</p></div>`;
+    return;
+  }
+  const childrenMap = {};
+  combined.forEach(m=>{
+    const pid = m.parentId || "__root__";
+    if(!childrenMap[pid]) childrenMap[pid] = [];
+    childrenMap[pid].push(m);
+  });
+  const roots = childrenMap["__root__"] || [];
+  const ul = document.createElement("ul");
+  ul.className = "tree";
+  roots.forEach(r => ul.appendChild(renderAdminNode(r, childrenMap)));
+  adminTreeContainer.innerHTML = "";
+  adminTreeContainer.appendChild(ul);
+}
+
+function renderAdminNode(member, childrenMap){
+  const li = document.createElement("li");
+  const node = document.createElement("div");
+  node.className = "node" + (member.status === "deceased" ? " deceased" : "") + (member.isGhost ? " draft-node" : "");
+  node.dataset.id = member.id;
+
+  const initials = (member.firstName || "?").trim().charAt(0);
+  node.innerHTML = `
+    ${member.isGhost ? `<span class="draft-badge">بانتظار الموافقة</span>` : ""}
+    <div class="node-photo">${initials}</div>
+    <div class="node-name">${escapeHtml(member.firstName || "")}</div>
+  `;
+
+  if(member.isGhost){
+    node.addEventListener("click", ()=> openGhostDetail(member));
+  } else {
+    node.addEventListener("click", ()=> openEdit(member));
+    node.draggable = true;
+    node.addEventListener("dragstart", (e)=>{
+      e.dataTransfer.setData("text/plain", member.id);
+    });
+    node.addEventListener("dragover", (e)=>{ e.preventDefault(); node.style.outline = "2px solid var(--gold)"; });
+    node.addEventListener("dragleave", ()=>{ node.style.outline = "none"; });
+    node.addEventListener("drop", (e)=>{
+      e.preventDefault();
+      node.style.outline = "none";
+      const draggedId = e.dataTransfer.getData("text/plain");
+      if(draggedId && draggedId !== member.id){
+        openDragRelationChoice(draggedId, member.id);
+      }
+    });
+  }
+
+  li.appendChild(node);
+  const kids = childrenMap[member.id];
+  if(kids && kids.length){
+    const ulKids = document.createElement("ul");
+    kids.forEach(k => ulKids.appendChild(renderAdminNode(k, childrenMap)));
+    li.appendChild(ulKids);
+  }
+  return li;
+}
+
+/* ---------------- تفاصيل عقدة ذهبية (طلب معلّق) ---------------- */
+let currentGhostItemId = null;
+function openGhostDetail(ghost){
+  currentGhostItemId = ghost.pendingId;
+  document.getElementById("ghostDetailTitle").textContent = ghost.firstName;
+  document.getElementById("ghostDetailBody").innerHTML = `
+    الاسم الرباعي: ${escapeHtml(ghost.fullName || "—")}<br>
+    الجنس: ${genderLabel(ghost.gender)}<br>
+    الحالة: ${ghost.status === "deceased" ? "متوفى" : "على قيد الحياة"}<br>
+    ${ghost.spouseName ? "الزوج/الزوجة: " + escapeHtml(ghost.spouseName) + "<br>" : ""}
+    العائلة: ${escapeHtml(familyLabel(ghost.familyId))}<br>
+    النوع: ${ghost.pendingType === "newRoot" ? "فرع مستقل جديد" : ghost.pendingType === "sibling" ? "أخ/أخت" : "ابن/ابنة"}
+  `;
+  document.getElementById("ghostDetailOverlay").classList.remove("hidden");
+}
+document.getElementById("ghostApproveBtn").addEventListener("click", async ()=>{
+  const item = pendingItemsGlobal.find(i => i.id === currentGhostItemId);
+  if(!item) return;
+  const btn = document.getElementById("ghostApproveBtn");
+  btn.disabled = true; btn.textContent = "جارٍ النشر...";
+  try{
+    await approveSingleSubmission(item);
+    document.getElementById("ghostDetailOverlay").classList.add("hidden");
+  }catch(err){
+    alert("حدث خطأ: " + err.message);
+  }finally{
+    btn.disabled = false; btn.textContent = "قبول ونشر";
+  }
+});
+document.getElementById("ghostRejectBtn").addEventListener("click", async ()=>{
+  if(!currentGhostItemId) return;
+  if(!confirm("متأكد من رفض هذا الطلب؟ لا يمكن التراجع.")) return;
+  await deleteDoc(doc(db, "pendingSubmissions", currentGhostItemId));
+  document.getElementById("ghostDetailOverlay").classList.add("hidden");
+});
+
+/* ---------------- ربط بالسحب والإسقاط ---------------- */
+let dragSourceId = null, dragTargetId = null;
+
+function isDescendant(possibleAncestorId, startId){
+  let current = membersFlat.find(m => m.id === startId);
+  const visited = new Set();
+  while(current && current.parentId){
+    if(visited.has(current.id)) break;
+    visited.add(current.id);
+    if(current.parentId === possibleAncestorId) return true;
+    current = membersFlat.find(m => m.id === current.parentId);
+  }
+  return false;
+}
+
+function openDragRelationChoice(sourceId, targetId){
+  dragSourceId = sourceId;
+  dragTargetId = targetId;
+  const source = membersFlat.find(m => m.id === sourceId);
+  const target = membersFlat.find(m => m.id === targetId);
+  if(!source || !target) return;
+  document.getElementById("dragRelationText").textContent = `${source.firstName} ← ${target.firstName}`;
+  document.getElementById("dragRelationOverlay").classList.remove("hidden");
+}
+
+document.getElementById("dragChildBtn").addEventListener("click", async ()=>{
+  if(isDescendant(dragSourceId, dragTargetId)){
+    alert("لا يمكن — هذا يسبب حلقة دائرية في الشجرة (الشخص الثاني هو أصلاً من نسل الشخص الأول).");
+    return;
+  }
+  await updateDoc(doc(db, "members", dragSourceId), { parentId: dragTargetId });
+  document.getElementById("dragRelationOverlay").classList.add("hidden");
+});
+
+document.getElementById("dragSpouseBtn").addEventListener("click", async ()=>{
+  const source = membersFlat.find(m => m.id === dragSourceId);
+  const target = membersFlat.find(m => m.id === dragTargetId);
+  if(!source || !target) return;
+  await updateDoc(doc(db, "members", dragSourceId), { spouseId: dragTargetId, spouseName: target.firstName });
+  await updateDoc(doc(db, "members", dragTargetId), { spouseId: dragSourceId, spouseName: source.firstName });
+  document.getElementById("dragRelationOverlay").classList.add("hidden");
+});
+
+document.getElementById("dragCancelBtn").addEventListener("click", ()=>{
+  document.getElementById("dragRelationOverlay").classList.add("hidden");
 });
 
 /* ---------------- إدارة الشجرة (تعديل / حذف) ---------------- */
