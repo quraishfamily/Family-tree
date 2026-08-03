@@ -467,6 +467,68 @@ footer.site-footer{
   .node-photo{ width:46px; height:46px; }
 }
 
+/* ---------- صندوق البحث ---------- */
+.search-box{
+  position:relative;
+  width:220px;
+}
+.search-box input{
+  width:100%;
+  background:var(--navy-panel);
+  border:1px solid var(--navy-line);
+  color:var(--ivory);
+  border-radius:10px;
+  padding:10px 14px;
+  font-size:14px;
+  font-family:inherit;
+}
+.search-box input:focus{ outline:2px solid var(--gold-dim); }
+.search-results{
+  position:absolute;
+  top:calc(100% + 6px);
+  right:0;
+  left:0;
+  background:var(--navy-panel);
+  border:1px solid var(--gold-dim);
+  border-radius:10px;
+  max-height:280px;
+  overflow-y:auto;
+  z-index:30;
+  box-shadow:var(--shadow);
+}
+.search-results.hidden{ display:none; }
+.search-result-item{
+  padding:10px 14px;
+  font-size:14px;
+  cursor:pointer;
+  border-bottom:1px solid var(--navy-line);
+}
+.search-result-item:last-child{ border-bottom:none; }
+.search-result-item:hover{ background:rgba(201,162,39,.12); }
+.search-result-item small{ display:block; color:var(--muted); font-size:12px; margin-top:2px; }
+
+.node.search-highlight{
+  animation:searchPulse 1.6s ease-out 2;
+}
+@keyframes searchPulse{
+  0%{ box-shadow:0 0 0 0 rgba(201,162,39,.7); }
+  70%{ box-shadow:0 0 0 14px rgba(201,162,39,0); }
+  100%{ box-shadow:0 0 0 0 rgba(201,162,39,0); }
+}
+
+/* ---------- تنبيه تشابه/تكرار الاسم ---------- */
+.dup-warning{
+  margin-top:8px;
+  font-size:12.5px;
+  color:#f0c96a;
+  background:rgba(201,162,39,.1);
+  border:1px solid var(--gold-dim);
+  border-radius:8px;
+  padding:8px 10px;
+  line-height:1.7;
+}
+.dup-warning.hidden{ display:none; }
+
 /* ---------- بطاقات اختيار العائلة (الصفحة الرئيسية) ---------- */
 .family-grid-frame{
   border:1px solid var(--gold-dim);
