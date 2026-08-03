@@ -509,11 +509,11 @@ onSnapshot(collection(db, "pendingSubmissions"), (snap)=>{
         }
         await updateDoc(doc(db, "members", item.targetMemberId), {
           spouseId: item.spouseMemberId,
-          spouseName: spouse.firstName,
+          spouseName: spouse.fullName || spouse.firstName,
         });
         await updateDoc(doc(db, "members", item.spouseMemberId), {
           spouseId: item.targetMemberId,
-          spouseName: target.firstName,
+          spouseName: target.fullName || target.firstName,
         });
         await deleteDoc(doc(db, "pendingSubmissions", id));
       }catch(err){
