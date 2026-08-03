@@ -137,10 +137,25 @@ button{ font-family:inherit; cursor:pointer; }
 .btn-danger:hover{ background:rgba(193,85,74,.12); }
 .btn-ghost{ border-color:var(--navy-line); color:var(--muted); }
 
-/* ---------- حاوية الشجرة ---------- */
+/* ---------- حاوية الشجرة (نافذة عرض قابلة للتحريك والتقريب) ---------- */
 .tree-wrap{
-  overflow-x:auto;
-  padding:40px 20px 100px;
+  position:relative;
+  overflow:hidden;
+  height:72vh;
+  min-height:420px;
+  margin:0 20px 40px;
+  border:1px solid var(--navy-line);
+  border-radius:var(--radius);
+  touch-action:none;
+  background:
+    radial-gradient(circle at 15% 10%, rgba(201,162,39,.05), transparent 40%),
+    var(--navy-deep);
+}
+#treeContainer{
+  position:absolute;
+  top:0; left:0;
+  transform-origin:0 0;
+  will-change:transform;
 }
 .tree, .tree ul{
   list-style:none;
@@ -148,10 +163,32 @@ button{ font-family:inherit; cursor:pointer; }
   display:flex;
   justify-content:center;
 }
-.tree{ min-width:max-content; margin:0 auto; }
+.tree{ min-width:max-content; }
 .tree ul{
   padding-top:44px;
   position:relative;
+}
+
+/* ---------- أزرار التقريب/التبعيد ---------- */
+.zoom-controls{
+  position:absolute;
+  bottom:16px;
+  inset-inline-end:16px;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  z-index:10;
+}
+.zoom-btn{
+  width:40px; height:40px;
+  padding:0;
+  font-size:19px;
+  font-weight:700;
+  border-radius:10px;
+  background:var(--navy-panel);
+  display:flex;
+  align-items:center;
+  justify-content:center;
 }
 .tree li{
   display:flex;
