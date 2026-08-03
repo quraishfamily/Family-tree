@@ -109,10 +109,24 @@ export function initPanZoom(viewport, content){
 
   viewport.style.cursor = "grab";
 
+  function focusOnElement(el, targetScale){
+    const elRect = el.getBoundingClientRect();
+    const vpRect = viewport.getBoundingClientRect();
+    const elCenterX = elRect.left + elRect.width / 2 - vpRect.left;
+    const elCenterY = elRect.top + elRect.height / 2 - vpRect.top;
+    const contentX = (elCenterX - originX) / scale;
+    const contentY = (elCenterY - originY) / scale;
+    scale = Math.min(maxScale, Math.max(minScale, targetScale || Math.max(scale, 1)));
+    originX = viewport.clientWidth / 2 - contentX * scale;
+    originY = viewport.clientHeight / 2 - contentY * scale;
+    apply();
+  }
+
   return {
     zoomIn: ()=> zoomBy(1.2),
     zoomOut: ()=> zoomBy(0.8),
     reset: fitToView,
     fit: fitToView,
+    focusOnElement,
   };
 }
