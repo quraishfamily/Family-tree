@@ -24,6 +24,12 @@
   .table th, .table td{ text-align:right; padding:10px; border-bottom:1px solid var(--navy-line); }
   .table th{ color:var(--muted); font-weight:500; }
   .login-wrap{ max-width:380px; margin:80px auto; }
+  .admin-tree-wrap{ overflow-x:auto; padding:20px 10px 60px; }
+  .admin-tree-wrap .node{ cursor:pointer; }
+  .admin-tree-wrap .node[draggable="true"]:active{ opacity:.7; }
+  .admin-legend{ display:flex; gap:18px; flex-wrap:wrap; font-size:13px; color:var(--muted); margin-bottom:10px; }
+  .admin-legend span{ display:inline-flex; align-items:center; gap:6px; }
+  .legend-dot{ width:12px; height:12px; border-radius:50%; display:inline-block; }
 </style>
 </head>
 <body>
@@ -52,12 +58,23 @@
     </div>
 
     <div class="tabs">
-      <button class="tab-btn active" data-tab="pending">طلبات الإضافة <span id="pendingCount"></span></button>
-      <button class="tab-btn" data-tab="manage">إدارة الشجرة</button>
+      <button class="tab-btn active" data-tab="interactive">الشجرة التفاعلية</button>
+      <button class="tab-btn" data-tab="pending">طلبات الإضافة <span id="pendingCount"></span></button>
+      <button class="tab-btn" data-tab="manage">إدارة الشجرة (جدول)</button>
       <button class="tab-btn" data-tab="addRoot">إضافة فرد مباشرة</button>
     </div>
 
-    <div class="panel active" id="panel-pending"></div>
+    <div class="panel active" id="panel-interactive">
+      <div class="admin-legend">
+        <span><span class="legend-dot" style="background:var(--navy-panel);border:1px solid var(--navy-line);"></span> شخص موجود بالشجرة — اضغط للتعديل، أو اسحبه على شخص ثاني لربطهم</span>
+        <span><span class="legend-dot" style="background:var(--gold);"></span> طلب بانتظار الموافقة — اضغط لعرض التفاصيل والموافقة/الرفض</span>
+      </div>
+      <div class="admin-tree-wrap">
+        <div id="adminTreeContainer"></div>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-pending"></div>
 
     <div class="panel" id="panel-manage">
       <div id="manageList"></div>
@@ -151,6 +168,33 @@
         </div>
         <div id="editMsg"></div>
       </form>
+    </div>
+  </div>
+
+  <!-- نافذة تفاصيل طلب معلّق (من الشجرة التفاعلية) -->
+  <div class="overlay hidden" id="ghostDetailOverlay">
+    <div class="modal">
+      <button class="close" data-close="ghostDetailOverlay">×</button>
+      <h3 id="ghostDetailTitle">—</h3>
+      <div id="ghostDetailBody" style="color:var(--ivory);font-size:14px;line-height:2;"></div>
+      <div class="form-actions">
+        <button class="btn btn-solid" id="ghostApproveBtn">قبول ونشر</button>
+        <button class="btn btn-danger" id="ghostRejectBtn">رفض</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- نافذة اختيار نوع العلاقة بعد السحب والإسقاط -->
+  <div class="overlay hidden" id="dragRelationOverlay">
+    <div class="modal">
+      <button class="close" data-close="dragRelationOverlay">×</button>
+      <h3>كيف تربطهم؟</h3>
+      <p class="hint" id="dragRelationText">—</p>
+      <div class="form-actions" style="flex-wrap:wrap;">
+        <button class="btn btn-solid" id="dragChildBtn" style="width:100%;">اجعل الأول ابن/ابنة للثاني</button>
+        <button class="btn" id="dragSpouseBtn" style="width:100%;">اربطهم كزوج وزوجة</button>
+        <button class="btn btn-ghost" id="dragCancelBtn" style="width:100%;">إلغاء</button>
+      </div>
     </div>
   </div>
 
