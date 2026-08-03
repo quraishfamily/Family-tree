@@ -12,6 +12,7 @@ const REQUIRED_IDS = [
   "identityForm", "identityChip", "detailOverlay", "addOverlay",
   "treeContainer", "familyTitle", "draftBar", "draftReviewOverlay",
   "linkSpouseOverlay", "lineageStopNote", "zoomInBtn", "zoomOutBtn", "zoomResetBtn",
+  "searchInput", "searchResults", "newFullNameWarning", "rootFullNameWarning",
 ];
 const missingIds = REQUIRED_IDS.filter(id => !document.getElementById(id));
 if(missingIds.length > 0){
@@ -761,7 +762,11 @@ function addChainStep(){
       </select>
     </div>
     <div class="field"><label>الاسم الأول</label><input type="text" class="chainFirstName"></div>
-    <div class="field"><label>الاسم الرباعي</label><input type="text" class="chainFullName"></div>
+    <div class="field">
+      <label>الاسم الرباعي</label>
+      <input type="text" class="chainFullName">
+      <div class="chainFullNameWarning dup-warning hidden"></div>
+    </div>
     <div class="field">
       <label>الجنس</label>
       <select class="chainGender">
@@ -781,6 +786,20 @@ function addChainStep(){
     <button type="button" class="btn btn-danger removeStepBtn">حذف هذه الحلقة</button>
   `;
   container.appendChild(div);
+  const fullNameInput = div.querySelector(".chainFullName");
+  const fullNameWarning = div.querySelector(".chainFullNameWarning");
+  fullNameInput.addEventListener("input", ()=>{
+    const val = fullNameInput.value.trim();
+    const matches = findSimilarNames(val, chainAnchorMember ? (chainAnchorMember.familyId || currentFamily) : currentFamily);
+    if(matches.length === 0){
+      fullNameWarning.classList.add("hidden");
+      fullNameWarning.innerHTML = "";
+    } else {
+      fullNameWarning.classList.remove("hidden");
+      fullNameWarning.innerHTML = "⚠️ يوجد اسم مشابه بنفس العائلة: " +
+        matches.slice(0, 3).map(m => escapeHtml(m.fullName)).join("، ");
+    }
+  });
   const firstNameInput = div.querySelector(".chainFirstName");
   firstNameInput.addEventListener("input", ()=>{
     firstNameInput.value = firstNameInput.value.replace(/\s+/g, "");
@@ -965,6 +984,97 @@ document.getElementById("linkSuggestionForm").addEventListener("submit", async (
     submitBtn.textContent = "إرسال الاقتراح";
   }
 });
+
+/* ---------------- البحث بالاسم ---------------- */
+const searchInput = document.getElementById("searchInput");
+const searchResultsEl = document.getElementById("searchResults");
+
+searchInput.addEventListener("input", ()=>{
+  const q = searchInput.value.trim();
+  if(!q){
+    searchResultsEl.classList.add("hidden");
+    searchResultsEl.innerHTML = "";
+    return;
+  }
+  const matches = getRenderList()
+    .filter(m => !m.isDraft && ((m.firstName || "").includes(q) || (m.fullName || "").includes(q)))
+    .slice(0, 8);
+  if(matches.length === 0){
+    searchResultsEl.innerHTML = `<div class="search-result-item" style="color:var(--muted);">لا توجد نتائج</div>`;
+    searchResultsEl.classList.remove("hidden");
+    return;
+  }
+  searchResultsEl.innerHTML = matches.map(m => `
+    <div class="search-result-item" data-goto="${m.id}">
+      ${escapeHtml(m.firstName)}
+      <small>${escapeHtml(m.fullName || "")} — ${escapeHtml(FAMILIES[m.familyId] || "")}</small>
+    </div>
+  `).join("");
+  searchResultsEl.classList.remove("hidden");
+  searchResultsEl.querySelectorAll("[data-goto]").forEach(item=>{
+    item.addEventListener("click", ()=>{
+      goToMember(item.dataset.goto);
+      searchResultsEl.classList.add("hidden");
+      searchInput.value = "";
+    });
+  });
+});
+
+document.addEventListener("click", (e)=>{
+  if(!e.target.closest(".search-box")) searchResultsEl.classList.add("hidden");
+});
+
+function goToMember(id){
+  // نوسّع كل شيء أول عشان نضمن إن العنصر المطلوب ظاهر بالـ DOM (مو مطوي)
+  document.getElementById("expandAllBtn").click();
+  requestAnimationFrame(()=>{
+    const el = treeContainer.querySelector(`[data-id="${id}"]`);
+    if(!el || !panZoomController) return;
+    panZoomController.focusOnElement(el, 1.1);
+    el.classList.add("search-highlight");
+    setTimeout(()=> el.classList.remove("search-highlight"), 3200);
+  });
+}
+/* ---------------- تنبيه تشابه/تكرار الاسم عند الإضافة ---------------- */
+function findSimilarNames(fullName, familyId){
+  const trimmed = fullName.trim();
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if(words.length < 2) return [];
+  const keyPart = words.slice(0, 2).join(" ");
+  return allMembersFlat.filter(m=>{
+    if(!m.fullName) return false;
+    if(familyId && m.familyId !== familyId) return false;
+    const mWords = m.fullName.trim().split(/\s+/).filter(Boolean);
+    return m.fullName.trim() === trimmed || mWords.slice(0, 2).join(" ") === keyPart;
+  });
+}
+
+function wireDuplicateWarning(inputEl, warningEl, getFamilyId){
+  inputEl.addEventListener("input", ()=>{
+    const val = inputEl.value.trim();
+    const matches = findSimilarNames(val, getFamilyId());
+    if(matches.length === 0){
+      warningEl.classList.add("hidden");
+      warningEl.innerHTML = "";
+      return;
+    }
+    warningEl.classList.remove("hidden");
+    warningEl.innerHTML = "⚠️ يوجد بالفعل اسم مشابه بنفس العائلة: " +
+      matches.slice(0, 3).map(m => escapeHtml(m.fullName)).join("، ") +
+      " — تأكد إنه ليس نفس الشخص قبل الإرسال.";
+  });
+}
+
+wireDuplicateWarning(
+  document.getElementById("newFullName"),
+  document.getElementById("newFullNameWarning"),
+  () => (addTargetMember && addTargetMember.familyId) || currentFamily
+);
+wireDuplicateWarning(
+  document.getElementById("rootFullName"),
+  document.getElementById("rootFullNameWarning"),
+  () => currentFamily === "all" ? document.getElementById("rootFamily").value : currentFamily
+);
 
 /* ---------------- تقييد حقل "الاسم الأول" بكلمة واحدة فقط ---------------- */
 function restrictToSingleWord(input){
