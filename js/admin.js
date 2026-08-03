@@ -40,6 +40,30 @@ document.getElementById("loginForm").addEventListener("submit", async (e)=>{
 
 document.getElementById("logoutBtn").addEventListener("click", ()=> signOut(auth));
 
+document.getElementById("exportBackupBtn").addEventListener("click", ()=>{
+  if(membersFlat.length === 0){
+    alert("لا يوجد بيانات بالشجرة حالياً لتصديرها.");
+    return;
+  }
+  const exportData = membersFlat.map(m=>{
+    const copy = { ...m };
+    if(copy.createdAt && typeof copy.createdAt.toDate === "function"){
+      copy.createdAt = copy.createdAt.toDate().toISOString();
+    }
+    return copy;
+  });
+  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const dateStr = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `family-tree-backup-${dateStr}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+});
+
 onAuthStateChanged(auth, (user)=>{
   if(user){
     loginView.style.display = "none";
