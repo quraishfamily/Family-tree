@@ -76,8 +76,11 @@ onSnapshot(query(collection(db, "members"), orderBy("createdAt","asc")), (snap)=
   renderParentSelect();
 });
 
+function genderLabel(g){
+  return g === "male" ? "ذكر" : g === "female" ? "أنثى" : "؟";
+}
 function memberLabel(m){
-  return `${m.firstName} — ${m.fullName || ""} (${familyLabel(m.familyId)})`;
+  return `${m.firstName} — ${m.fullName || ""} (${familyLabel(m.familyId)} · ${genderLabel(m.gender)})`;
 }
 
 function renderParentSelect(){
@@ -177,6 +180,75 @@ onSnapshot(collection(db, "pendingSubmissions"), (snap)=>{
       return;
     }
 
+    if(item.type === "draftBatch"){
+      function parentLabelFor(node, allNodes){
+        if(node.parentRef && node.parentRef.startsWith("draft:")){
+          const p = allNodes.find(n => n.localId === node.parentRef.slice(6));
+          return p ? p.firstName : "(عنصر ضمن نفس الدفعة)";
+        }
+        const p = membersFlat.find(m => m.id === node.parentRef);
+        return p ? p.firstName : "جذر جديد";
+      }
+      const nodesHtml = item.nodes.map(n => `
+        <div style="padding:8px 0;border-bottom:1px solid var(--navy-line);font-size:14px;">
+          <strong>${escapeHtml(n.firstName)}</strong> (${escapeHtml(n.fullName || "—")})
+          — تحت: <em>${escapeHtml(parentLabelFor(n, item.nodes))}</em>
+          ${n.status === "deceased" ? " · متوفى" : ""}
+          ${n.spouseName ? " · الزوج/الزوجة: " + escapeHtml(n.spouseName) : ""}
+          · العائلة: ${escapeHtml(familyLabel(n.familyId))}
+        </div>`).join("");
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <div class="card-head">
+          <div>
+            <h4>دفعة إضافات سريعة (${item.nodes.length} ${item.nodes.length === 1 ? "شخص" : "أشخاص"})</h4>
+          </div>
+          <div class="card-meta">
+            مُقدّم الطلب:<br>
+            ${escapeHtml(item.submitterName || "")}<br>
+            ${escapeHtml(item.submitterEmail || "")}<br>
+            ${escapeHtml(item.submitterPhone || "")}
+          </div>
+        </div>
+        <div class="card-actions" style="margin-top:10px;">
+          <button class="btn btn-ghost" data-toggle-draftdetails="${item.id}">عرض تفاصيل الأشخاص المقترحين ▾</button>
+        </div>
+        <div style="display:none;" id="draftDetails-${item.id}">${nodesHtml}</div>
+        <div class="card-actions">
+          <button class="btn btn-solid" data-approve-draftbatch="${item.id}">قبول ونشر الكل</button>
+          <button class="btn btn-danger" data-reject="${item.id}">رفض الكل</button>
+        </div>
+      `;
+      panelPending.appendChild(card);
+      return;
+    }
+
+    if(item.type === "spouseLink"){
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <div class="card-head">
+          <div>
+            <h4>ربط زواج: ${escapeHtml(item.targetMemberFirstName || "—")} ↔ ${escapeHtml(item.spouseMemberFirstName || "—")}</h4>
+            <div class="card-meta">العائلة: ${escapeHtml(familyLabel(item.familyId))}</div>
+          </div>
+          <div class="card-meta">
+            مُقدّم الطلب:<br>
+            ${escapeHtml(item.submitterName || "")}<br>
+            ${escapeHtml(item.submitterEmail || "")}<br>
+            ${escapeHtml(item.submitterPhone || "")}
+          </div>
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-solid" data-approve-spouselink="${item.id}">قبول ونشر الربط</button>
+          <button class="btn btn-danger" data-reject="${item.id}">رفض</button>
+        </div>
+      `;
+      panelPending.appendChild(card);
+      return;
+    }
+
     if(item.type === "linkSuggestion"){
       const personA = membersFlat.find(m => m.id === item.personAId);
       const personB = membersFlat.find(m => m.id === item.personBId);
@@ -259,6 +331,7 @@ onSnapshot(collection(db, "pendingSubmissions"), (snap)=>{
           firstName: item.firstName,
           fullName: item.fullName,
           familyId: item.familyId || null,
+          gender: item.gender || null,
           status: item.status,
           spouseName: item.spouseName || null,
           photoURL: item.photoURL || null,
@@ -320,6 +393,104 @@ onSnapshot(collection(db, "pendingSubmissions"), (snap)=>{
     });
   });
 
+  panelPending.querySelectorAll("[data-toggle-draftdetails]").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const wrap = document.getElementById("draftDetails-" + btn.dataset.toggleDraftdetails);
+      const isHidden = wrap.style.display === "none";
+      wrap.style.display = isHidden ? "block" : "none";
+      btn.textContent = isHidden ? "إخفاء التفاصيل ▲" : "عرض تفاصيل الأشخاص المقترحين ▾";
+    });
+  });
+
+  panelPending.querySelectorAll("[data-approve-spouselink]").forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
+      const id = btn.dataset.approveSpouselink;
+      const item = items.find(i=>i.id === id);
+      btn.disabled = true; btn.textContent = "جارٍ الربط...";
+      try{
+        const target = membersFlat.find(m => m.id === item.targetMemberId);
+        const spouse = membersFlat.find(m => m.id === item.spouseMemberId);
+        if(!target || !spouse){
+          throw new Error("أحد الشخصين لم يعد موجوداً في الشجرة.");
+        }
+        await updateDoc(doc(db, "members", item.targetMemberId), {
+          spouseId: item.spouseMemberId,
+          spouseName: spouse.firstName,
+        });
+        await updateDoc(doc(db, "members", item.spouseMemberId), {
+          spouseId: item.targetMemberId,
+          spouseName: target.firstName,
+        });
+        await deleteDoc(doc(db, "pendingSubmissions", id));
+      }catch(err){
+        alert("حدث خطأ: " + err.message);
+        btn.disabled = false; btn.textContent = "قبول ونشر الربط";
+      }
+    });
+  });
+
+  panelPending.querySelectorAll("[data-approve-draftbatch]").forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
+      const id = btn.dataset.approveDraftbatch;
+      const item = items.find(i=>i.id === id);
+      const validNodes = item.nodes.filter(n => n.firstName && n.fullName);
+      if(validNodes.length < item.nodes.length){
+        const proceed = confirm(`تنبيه: ${item.nodes.length - validNodes.length} عنصر من هذا الطلب بدون اسم صالح (بيانات تالفة) وسيتم تجاهله. تكمل بالباقي (${validNodes.length})؟`);
+        if(!proceed) return;
+      }
+      btn.disabled = true; btn.textContent = "جارٍ النشر...";
+      try{
+        const idMap = {}; // localId -> معرّف حقيقي في Firestore
+        let remaining = validNodes.slice();
+        let safety = 0;
+        while(remaining.length && safety < 500){
+          safety++;
+          const stillRemaining = [];
+          for(const node of remaining){
+            let resolvedParentId = null;
+            let ready = true;
+            if(node.parentRef && node.parentRef.startsWith("draft:")){
+              const refLocal = node.parentRef.slice(6);
+              if(Object.prototype.hasOwnProperty.call(idMap, refLocal)){
+                resolvedParentId = idMap[refLocal];
+              } else {
+                ready = false;
+              }
+            } else {
+              resolvedParentId = node.parentRef || null;
+            }
+            if(ready){
+              const newRef = await addDoc(collection(db, "members"), {
+                firstName: node.firstName,
+                fullName: node.fullName,
+                familyId: node.familyId || null,
+                gender: node.gender || null,
+                status: node.status,
+                spouseName: node.spouseName || null,
+                photoURL: null,
+                addedByName: item.submitterName || null,
+                parentId: resolvedParentId,
+                createdAt: serverTimestamp(),
+                approvedBy: auth.currentUser.email,
+              });
+              idMap[node.localId] = newRef.id;
+            } else {
+              stillRemaining.push(node);
+            }
+          }
+          if(stillRemaining.length === remaining.length){
+            throw new Error("تعذّر معالجة بعض عناصر الدفعة بسبب رابط غير صالح بين العناصر.");
+          }
+          remaining = stillRemaining;
+        }
+        await deleteDoc(doc(db, "pendingSubmissions", id));
+      }catch(err){
+        alert("حدث خطأ: " + err.message);
+        btn.disabled = false; btn.textContent = "قبول ونشر الكل";
+      }
+    });
+  });
+
   panelPending.querySelectorAll("[data-approve-chain]").forEach(btn=>{
     btn.addEventListener("click", async ()=>{
       const id = btn.dataset.approveChain;
@@ -332,6 +503,7 @@ onSnapshot(collection(db, "pendingSubmissions"), (snap)=>{
             firstName: step.firstName,
             fullName: step.fullName,
             familyId: item.familyId || null,
+            gender: step.gender || null,
             status: step.status,
             spouseName: step.spouseName || null,
             photoURL: null,
@@ -374,6 +546,7 @@ function renderManageList(){
       <td>${escapeHtml(m.firstName)}</td>
       <td>${escapeHtml(m.fullName || "—")}</td>
       <td>${escapeHtml(familyLabel(m.familyId))}</td>
+      <td>${genderLabel(m.gender)}</td>
       <td>${m.status === "deceased" ? "متوفى" : "حيّ"}</td>
       <td>
         <button class="btn btn-ghost" data-edit="${m.id}">تعديل</button>
@@ -382,7 +555,7 @@ function renderManageList(){
     </tr>
   `).join("");
   wrap.innerHTML = `<table class="table"><thead><tr>
-    <th></th><th>الاسم</th><th>الرباعي</th><th>العائلة</th><th>الحالة</th><th></th>
+    <th></th><th>الاسم</th><th>الرباعي</th><th>العائلة</th><th>الجنس</th><th>الحالة</th><th></th>
   </tr></thead><tbody>${rows}</tbody></table>`;
 
   wrap.querySelectorAll("[data-edit]").forEach(btn=>{
@@ -407,6 +580,7 @@ function openEdit(m){
   document.getElementById("editFamily").value = m.familyId || "quraish";
   document.getElementById("editFirstName").value = m.firstName || "";
   document.getElementById("editFullName").value = m.fullName || "";
+  document.getElementById("editGender").value = m.gender || "";
   document.getElementById("editStatus").value = m.status || "alive";
   document.getElementById("editSpouse").value = m.spouseName || "";
   document.getElementById("editMsg").innerHTML = "";
@@ -438,6 +612,7 @@ document.getElementById("editForm").addEventListener("submit", async (e)=>{
       firstName: document.getElementById("editFirstName").value.trim(),
       fullName: document.getElementById("editFullName").value.trim(),
       familyId: document.getElementById("editFamily").value,
+      gender: document.getElementById("editGender").value || null,
       status: document.getElementById("editStatus").value,
       spouseName: document.getElementById("editSpouse").value.trim() || null,
       parentId: document.getElementById("editParent").value || null,
@@ -470,6 +645,7 @@ document.getElementById("directAddForm").addEventListener("submit", async (e)=>{
       familyId: document.getElementById("directFamily").value,
       firstName: document.getElementById("directFirstName").value.trim(),
       fullName: document.getElementById("directFullName").value.trim(),
+      gender: document.getElementById("directGender").value || null,
       status: document.getElementById("directStatus").value,
       spouseName: document.getElementById("directSpouse").value.trim() || null,
       photoURL,
