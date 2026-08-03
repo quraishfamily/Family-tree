@@ -177,10 +177,48 @@
       <button class="close" data-close="ghostDetailOverlay">×</button>
       <h3 id="ghostDetailTitle">—</h3>
       <div id="ghostDetailBody" style="color:var(--ivory);font-size:14px;line-height:2;"></div>
+      <div class="form-actions" style="flex-wrap:wrap;">
+        <button class="btn" id="ghostEditSingleBtn" style="width:100%;">تعديل بيانات هذا الشخص</button>
+      </div>
+      <div class="form-actions" id="ghostRemoveWrap" style="display:none;">
+        <button class="btn btn-danger" id="ghostRemoveSingleBtn" style="width:100%;">حذف هذا الشخص من المجموعة (والباقي يتم قبوله بشكل طبيعي)</button>
+      </div>
       <div class="form-actions">
         <button class="btn btn-solid" id="ghostApproveBtn">قبول ونشر</button>
-        <button class="btn btn-danger" id="ghostRejectBtn">رفض</button>
+        <button class="btn btn-danger" id="ghostRejectBtn">رفض الكل</button>
       </div>
+    </div>
+  </div>
+
+  <!-- نافذة تعديل بيانات شخص واحد ضمن طلب معلّق -->
+  <div class="overlay hidden" id="ghostEditOverlay">
+    <div class="modal">
+      <button class="close" data-close="ghostEditOverlay">×</button>
+      <h3>تعديل بيانات هذا الشخص</h3>
+      <p class="hint">هذا التعديل يغيّر بيانات الطلب المعلّق نفسه قبل الموافقة عليه، ولا يؤثر على باقي المجموعة.</p>
+      <form id="ghostEditForm">
+        <div class="field"><label>الاسم الأول</label><input type="text" id="ghostEditFirstName" required></div>
+        <div class="field"><label>الاسم الرباعي</label><input type="text" id="ghostEditFullName" required></div>
+        <div class="field">
+          <label>الجنس</label>
+          <select id="ghostEditGender">
+            <option value="male">ذكر</option>
+            <option value="female">أنثى</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>الحالة</label>
+          <select id="ghostEditStatus">
+            <option value="alive">على قيد الحياة</option>
+            <option value="deceased">متوفى</option>
+          </select>
+        </div>
+        <div class="field"><label>اسم الزوج/الزوجة (اختياري)</label><input type="text" id="ghostEditSpouse"></div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-solid">حفظ التعديل</button>
+        </div>
+        <div id="ghostEditMsg"></div>
+      </form>
     </div>
   </div>
 
