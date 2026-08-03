@@ -2,6 +2,7 @@ import {
   db, storage, collection, addDoc, onSnapshot, query, orderBy,
   serverTimestamp, ref, uploadBytes, getDownloadURL
 } from "./firebase-init.js";
+import { initPanZoom } from "./pan-zoom.js";
 
 /* ---------------- الهوية (بدون كلمة سر — تعريف بسيط) ---------------- */
 const IDENTITY_KEY = "ft_identity_v1";
@@ -10,7 +11,7 @@ const IDENTITY_KEY = "ft_identity_v1";
 const REQUIRED_IDS = [
   "identityForm", "identityChip", "detailOverlay", "addOverlay",
   "treeContainer", "familyTitle", "draftBar", "draftReviewOverlay",
-  "linkSpouseOverlay", "lineageStopNote",
+  "linkSpouseOverlay", "lineageStopNote", "zoomInBtn", "zoomOutBtn", "zoomResetBtn",
 ];
 const missingIds = REQUIRED_IDS.filter(id => !document.getElementById(id));
 if(missingIds.length > 0){
@@ -162,6 +163,17 @@ function resolveFamilyId(parentKey){
 }
 
 const treeContainer = document.getElementById("treeContainer");
+let panZoomController = null;
+let hasFitOnce = false;
+
+function ensurePanZoom(){
+  if(!panZoomController){
+    panZoomController = initPanZoom(document.querySelector(".tree-wrap"), treeContainer);
+    document.getElementById("zoomInBtn").addEventListener("click", ()=> panZoomController.zoomIn());
+    document.getElementById("zoomOutBtn").addEventListener("click", ()=> panZoomController.zoomOut());
+    document.getElementById("zoomResetBtn").addEventListener("click", ()=> panZoomController.reset());
+  }
+}
 
 const q = query(collection(db, "members"), orderBy("createdAt", "asc"));
 onSnapshot(q, (snap) => {
@@ -215,6 +227,12 @@ function renderTree(){
   roots.forEach(root => ul.appendChild(renderNode(root, childrenMap)));
   treeContainer.innerHTML = "";
   treeContainer.appendChild(ul);
+
+  ensurePanZoom();
+  if(!hasFitOnce){
+    hasFitOnce = true;
+    panZoomController.fit();
+  }
 }
 
 function renderNode(member, childrenMap){
