@@ -595,7 +595,7 @@ function buildAdminGhosts(){
           parentId,
           firstName: node.firstName, fullName: node.fullName, gender: node.gender,
           status: node.status, spouseName: node.spouseName, familyId: node.familyId,
-          isGhost: true, groupSize: item.nodes.length,
+          isGhost: true, groupSize: item.nodes.length, subKey: node.localId,
         });
       });
     } else if(item.type === "chain"){
@@ -613,7 +613,7 @@ function buildAdminGhosts(){
           parentId,
           firstName: step.firstName, fullName: step.fullName, gender: step.gender,
           status: step.status, spouseName: step.spouseName, familyId: item.familyId,
-          isGhost: true, groupSize: item.steps.length,
+          isGhost: true, groupSize: item.steps.length, subKey: idx,
         });
         prevId = ghostId;
       });
@@ -699,6 +699,7 @@ function renderAdminNode(member, childrenMap){
 /* ---------------- تفاصيل عقدة ذهبية (طلب معلّق) ---------------- */
 let currentGhostItemId = null;
 let currentGhostItemType = null;
+let currentGhostSubKey = null;
 
 const PENDING_TYPE_LABELS = {
   child: "ابن/ابنة", sibling: "أخ/أخت", newRoot: "فرع مستقل جديد",
@@ -708,9 +709,11 @@ const PENDING_TYPE_LABELS = {
 function openGhostDetail(ghost){
   currentGhostItemId = ghost.pendingId;
   currentGhostItemType = ghost.pendingType;
+  currentGhostSubKey = (ghost.subKey !== undefined) ? ghost.subKey : null;
   document.getElementById("ghostDetailTitle").textContent = ghost.firstName;
-  const groupNote = ghost.groupSize && ghost.groupSize > 1
-    ? `<p style="color:var(--gold-light);margin-top:10px;">⚠️ هذا الشخص جزء من مجموعة مكوّنة من ${ghost.groupSize} أشخاص — الموافقة أو الرفض ستشمل المجموعة كاملة دفعة وحدة.</p>`
+  const isGroup = ghost.groupSize && ghost.groupSize > 1;
+  const groupNote = isGroup
+    ? `<p style="color:var(--gold-light);margin-top:10px;">⚠️ هذا الشخص جزء من مجموعة مكوّنة من ${ghost.groupSize} أشخاص. لو باقي المجموعة صحيحة وهذا الشخص فقط فيه خطأ، تقدر "تعدّل بياناته" أو "تحذفه من المجموعة" بدل رفض الكل.</p>`
     : "";
   document.getElementById("ghostDetailBody").innerHTML = `
     الاسم الرباعي: ${escapeHtml(ghost.fullName || "—")}<br>
@@ -721,6 +724,8 @@ function openGhostDetail(ghost){
     النوع: ${PENDING_TYPE_LABELS[ghost.pendingType] || ghost.pendingType}
     ${groupNote}
   `;
+  document.getElementById("ghostRemoveWrap").style.display = isGroup ? "block" : "none";
+  document.getElementById("ghostRejectBtn").textContent = isGroup ? "رفض الكل" : "رفض";
   document.getElementById("ghostDetailOverlay").classList.remove("hidden");
 }
 
@@ -748,6 +753,111 @@ document.getElementById("ghostRejectBtn").addEventListener("click", async ()=>{
   if(!currentGhostItemId) return;
   if(!confirm("متأكد من رفض هذا الطلب؟ لا يمكن التراجع.")) return;
   await deleteDoc(doc(db, "pendingSubmissions", currentGhostItemId));
+  document.getElementById("ghostDetailOverlay").classList.add("hidden");
+});
+
+/* ---------------- تعديل شخص واحد ضمن طلب معلّق (مفرد أو ضمن مجموعة) ---------------- */
+document.getElementById("ghostEditSingleBtn").addEventListener("click", ()=>{
+  const item = pendingItemsGlobal.find(i => i.id === currentGhostItemId);
+  if(!item) return;
+  let sub;
+  if(currentGhostItemType === "draftBatch"){
+    sub = item.nodes.find(n => n.localId === currentGhostSubKey);
+  } else if(currentGhostItemType === "chain"){
+    sub = item.steps[currentGhostSubKey];
+  } else {
+    sub = item; // نوع مفرد: البيانات على مستوى الطلب نفسه
+  }
+  if(!sub) return;
+  document.getElementById("ghostEditFirstName").value = sub.firstName || "";
+  document.getElementById("ghostEditFullName").value = sub.fullName || "";
+  document.getElementById("ghostEditGender").value = sub.gender || "male";
+  document.getElementById("ghostEditStatus").value = sub.status || "alive";
+  document.getElementById("ghostEditSpouse").value = sub.spouseName || "";
+  document.getElementById("ghostEditMsg").innerHTML = "";
+  document.getElementById("ghostDetailOverlay").classList.add("hidden");
+  document.getElementById("ghostEditOverlay").classList.remove("hidden");
+});
+
+document.getElementById("ghostEditForm").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const msgEl = document.getElementById("ghostEditMsg");
+  msgEl.innerHTML = "";
+  const item = pendingItemsGlobal.find(i => i.id === currentGhostItemId);
+  if(!item) return;
+
+  const newFirstName = document.getElementById("ghostEditFirstName").value.trim();
+  const newFullName = document.getElementById("ghostEditFullName").value.trim();
+  const newGender = document.getElementById("ghostEditGender").value;
+  const newStatus = document.getElementById("ghostEditStatus").value;
+  const newSpouse = document.getElementById("ghostEditSpouse").value.trim() || null;
+  if(!newFirstName || !newFullName){
+    msgEl.innerHTML = `<div class="msg-err">أكمل الاسم الأول والرباعي.</div>`;
+    return;
+  }
+
+  try{
+    if(currentGhostItemType === "draftBatch"){
+      const updatedNodes = item.nodes.map(n => n.localId === currentGhostSubKey
+        ? { ...n, firstName:newFirstName, fullName:newFullName, gender:newGender, status:newStatus, spouseName:newSpouse }
+        : n
+      );
+      await updateDoc(doc(db, "pendingSubmissions", item.id), { nodes: updatedNodes });
+    } else if(currentGhostItemType === "chain"){
+      const updatedSteps = item.steps.map((s, i) => i === currentGhostSubKey
+        ? { ...s, firstName:newFirstName, fullName:newFullName, gender:newGender, status:newStatus, spouseName:newSpouse }
+        : s
+      );
+      await updateDoc(doc(db, "pendingSubmissions", item.id), { steps: updatedSteps });
+    } else {
+      await updateDoc(doc(db, "pendingSubmissions", item.id), {
+        firstName:newFirstName, fullName:newFullName, gender:newGender, status:newStatus, spouseName:newSpouse,
+      });
+    }
+    document.getElementById("ghostEditOverlay").classList.add("hidden");
+  }catch(err){
+    msgEl.innerHTML = `<div class="msg-err">${escapeHtml(err.message)}</div>`;
+  }
+});
+
+document.getElementById("ghostRemoveSingleBtn").addEventListener("click", async ()=>{
+  const item = pendingItemsGlobal.find(i => i.id === currentGhostItemId);
+  if(!item) return;
+
+  if(currentGhostItemType === "draftBatch"){
+    const idsToRemove = new Set([currentGhostSubKey]);
+    let changed = true;
+    while(changed){
+      changed = false;
+      item.nodes.forEach(n=>{
+        const parentLocalId = n.parentRef && n.parentRef.startsWith("draft:") ? n.parentRef.slice(6) : null;
+        if(parentLocalId && idsToRemove.has(parentLocalId) && !idsToRemove.has(n.localId)){
+          idsToRemove.add(n.localId);
+          changed = true;
+        }
+      });
+    }
+    const extra = idsToRemove.size - 1;
+    const confirmMsg = extra > 0
+      ? `هذا الشخص له ${extra} إضافة تابعة له بنفس الطلب، بيتم حذفها كلها معه. متأكد؟`
+      : "متأكد من حذف هذا الشخص من الطلب؟ الباقي بيتم قبوله بشكل طبيعي.";
+    if(!confirm(confirmMsg)) return;
+
+    const remainingNodes = item.nodes.filter(n => !idsToRemove.has(n.localId));
+    if(remainingNodes.length === 0){
+      await deleteDoc(doc(db, "pendingSubmissions", item.id));
+    } else {
+      await updateDoc(doc(db, "pendingSubmissions", item.id), { nodes: remainingNodes });
+    }
+  } else if(currentGhostItemType === "chain"){
+    if(!confirm("متأكد من حذف هذه الحلقة من السلسلة؟ الحلقة اللي بعدها بتتصل تلقائياً بالحلقة اللي قبلها.")) return;
+    const remainingSteps = item.steps.filter((s, i) => i !== currentGhostSubKey);
+    if(remainingSteps.length === 0){
+      await deleteDoc(doc(db, "pendingSubmissions", item.id));
+    } else {
+      await updateDoc(doc(db, "pendingSubmissions", item.id), { steps: remainingSteps });
+    }
+  }
   document.getElementById("ghostDetailOverlay").classList.add("hidden");
 });
 
