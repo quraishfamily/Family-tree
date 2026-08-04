@@ -26,6 +26,8 @@
     <button class="btn" id="collapseAllBtn">طي الكل</button>
     <button class="btn btn-ghost" id="openNewRootBtn">إضافة فرع عائلي جديد (غير متصل)</button>
     <button class="btn btn-ghost" id="openLinkSuggestionBtn">اقتراح ربط بين شخصين</button>
+    <button class="btn btn-ghost" id="exportImageBtn">📷 تصدير كصورة</button>
+    <button class="btn btn-ghost" id="exportPdfBtn">📄 تصدير PDF</button>
   </div>
 
   <div class="tree-wrap">
@@ -71,8 +73,11 @@
       <h3 id="detailName">—</h3>
       <div class="detail-row"><span>الاسم الرباعي</span><span id="detailFullName">—</span></div>
       <div class="detail-row"><span>الحالة</span><span id="detailStatus">—</span></div>
+      <div class="detail-row" id="detailBirthYearRow"><span>سنة الميلاد</span><span id="detailBirthYear">—</span></div>
+      <div class="detail-row" id="detailDeathYearRow"><span>سنة الوفاة</span><span id="detailDeathYear">—</span></div>
       <div class="detail-row" id="detailSpouseRow"><span>الزوج/الزوجة</span><span id="detailSpouse">—</span></div>
       <div class="detail-row" id="detailAddedByRow"><span>أُضيف بواسطة</span><span id="detailAddedBy">—</span></div>
+      <p class="hint" id="detailBioText" style="display:none;color:var(--ivory);background:var(--navy-panel-2);padding:10px;border-radius:8px;margin-top:10px;"></p>
       <p class="hint" id="lineageStopNote" style="display:none;color:#f0a89f;background:rgba(193,85,74,.1);padding:10px;border-radius:8px;margin-top:10px;">
         🔒 النسب يتوقف هنا — أبناء البنت ينتسبون لعائلة زوجها. لو كان زوجها من نفس العائلة، اربطه بالزر بالأسفل حتى تقدر تضيف أبناءهما تحته.
       </p>
@@ -147,6 +152,18 @@
             <option value="alive">على قيد الحياة</option>
             <option value="deceased">متوفى</option>
           </select>
+        </div>
+        <div class="field">
+          <label>سنة الميلاد (اختياري)</label>
+          <input type="text" id="newBirthYear" placeholder="مثال: 1985">
+        </div>
+        <div class="field" id="newDeathYearWrap" style="display:none;">
+          <label>سنة الوفاة (اختياري)</label>
+          <input type="text" id="newDeathYear" placeholder="مثال: 2020">
+        </div>
+        <div class="field">
+          <label>نبذة قصيرة (اختياري)</label>
+          <textarea id="newBio" rows="2" style="width:100%;background:var(--navy-deep);border:1px solid var(--navy-line);color:var(--ivory);border-radius:8px;padding:10px 12px;font-family:inherit;font-size:14px;" placeholder="جملة أو جملتين عن الشخص"></textarea>
         </div>
         <div class="field">
           <label>اسم الزوج/الزوجة (اختياري)</label>
@@ -226,6 +243,18 @@
             <option value="alive">على قيد الحياة</option>
             <option value="deceased">متوفى</option>
           </select>
+        </div>
+        <div class="field">
+          <label>سنة الميلاد (اختياري)</label>
+          <input type="text" id="rootBirthYear" placeholder="مثال: 1985">
+        </div>
+        <div class="field" id="rootDeathYearWrap" style="display:none;">
+          <label>سنة الوفاة (اختياري)</label>
+          <input type="text" id="rootDeathYear" placeholder="مثال: 2020">
+        </div>
+        <div class="field">
+          <label>نبذة قصيرة (اختياري)</label>
+          <textarea id="rootBio" rows="2" style="width:100%;background:var(--navy-deep);border:1px solid var(--navy-line);color:var(--ivory);border-radius:8px;padding:10px 12px;font-family:inherit;font-size:14px;" placeholder="جملة أو جملتين عن الشخص"></textarea>
         </div>
         <div class="field">
           <label>اسم الزوج/الزوجة (اختياري)</label>
@@ -314,6 +343,8 @@
     </div>
   </div>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script type="module" src="js/app.js"></script>
 </body>
 </html>
