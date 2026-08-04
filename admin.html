@@ -69,6 +69,25 @@
     color:var(--muted);
     margin-top:2px;
   }
+  .log-entry{
+    background:var(--navy-panel);
+    border:1px solid var(--navy-line);
+    border-radius:10px;
+    padding:12px 14px;
+    margin-bottom:8px;
+    font-size:13.5px;
+  }
+  .log-entry .log-meta{
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+    color:var(--gold-light);
+    font-weight:700;
+    font-size:12.5px;
+    margin-bottom:6px;
+    flex-wrap:wrap;
+  }
+  .log-entry .log-summary{ color:var(--ivory); line-height:1.8; }
 </style>
 </head>
 <body>
@@ -104,6 +123,7 @@
       <button class="tab-btn" data-tab="pending">طلبات الإضافة <span id="pendingCount"></span></button>
       <button class="tab-btn" data-tab="manage">إدارة الشجرة (جدول)</button>
       <button class="tab-btn" data-tab="addRoot">إضافة فرد مباشرة</button>
+      <button class="tab-btn" data-tab="activityLog">سجل النشاط</button>
     </div>
 
     <div class="panel active" id="panel-interactive">
@@ -188,6 +208,14 @@
           <div id="directAddMsg"></div>
         </form>
       </div>
+    </div>
+
+    <div class="panel" id="panel-activityLog">
+      <div class="card">
+        <h4>سجل نشاط الأدمن</h4>
+        <p class="card-meta">آخر 200 إجراء (موافقة، رفض، تعديل، حذف، ربط) — الأحدث أولاً.</p>
+      </div>
+      <div id="activityLogList"></div>
     </div>
   </div>
 
