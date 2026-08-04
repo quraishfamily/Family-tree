@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>تواصل معنا — شجرة العائلة</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <header class="charter-header">
+    <div class="charter-eyebrow">تواصل معنا</div>
+    <h1 class="charter-title">عندك ملاحظة أو اقتراح؟</h1>
+    <p class="charter-sub">لو لاحظت أي خطأ بالأداة، أو عندك فكرة تطوير، أو أي استفسار — أخبرنا هنا</p>
+    <a class="family-back-link" href="index.html">← الرجوع للصفحة الرئيسية</a>
+  </header>
+
+  <section style="max-width:560px;margin:0 auto;padding:36px 20px 60px;">
+    <div class="card">
+      <form id="contactForm">
+        <div class="field">
+          <label>اسمك</label>
+          <input type="text" id="contactName" required placeholder="مثال: أحمد محمد">
+        </div>
+        <div class="field">
+          <label>بريدك الإلكتروني أو رقم جوالك (حتى نرد عليك لو احتجنا)</label>
+          <input type="text" id="contactContact" required placeholder="name@example.com أو 05xxxxxxxx">
+        </div>
+        <div class="field">
+          <label>نوع الرسالة</label>
+          <select id="contactType">
+            <option value="suggestion">اقتراح تطوير</option>
+            <option value="bug">ملاحظة أو خطأ بالأداة</option>
+            <option value="other">شيء آخر</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>رسالتك</label>
+          <textarea id="contactMessage" required rows="6" style="width:100%;background:var(--navy-deep);border:1px solid var(--navy-line);color:var(--ivory);border-radius:8px;padding:10px 12px;font-family:inherit;font-size:14px;" placeholder="اكتب ملاحظتك أو اقتراحك بالتفصيل..."></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-solid">إرسال</button>
+        </div>
+        <div id="contactMsg"></div>
+      </form>
+    </div>
+  </section>
+
+  <footer class="site-footer">رسالتك تروح مباشرة للمسؤولين عن الأداة</footer>
+
+  <script type="module" src="js/contact.js"></script>
+</body>
+</html>
