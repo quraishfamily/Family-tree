@@ -39,8 +39,13 @@ function renderIdentityChip(){
   const chip = document.getElementById("identityChip");
   const id = getIdentity();
   if(id){
-    chip.innerHTML = `مسجّل باسم: <strong>${escapeHtml(id.name)}</strong> <button id="editIdentityBtn">تغيير</button>`;
+    chip.innerHTML = `مسجّل باسم: <strong>${escapeHtml(id.name)}</strong> <button id="editIdentityBtn">تغيير</button> <button id="logoutIdentityBtn">تسجيل الخروج</button>`;
     document.getElementById("editIdentityBtn").onclick = () => openOverlay("identityOverlay");
+    document.getElementById("logoutIdentityBtn").onclick = () => {
+      if(!confirm("متأكد من تسجيل الخروج؟ لو حبيت تضيف أي شيء بعدين، بنطلب منك تسجيل بياناتك من جديد.")) return;
+      localStorage.removeItem(IDENTITY_KEY);
+      renderIdentityChip();
+    };
   } else {
     chip.innerHTML = `<button id="editIdentityBtn">تسجيل بياناتك للمساهمة في الشجرة</button>`;
     document.getElementById("editIdentityBtn").onclick = () => openOverlay("identityOverlay");
@@ -177,6 +182,27 @@ function ensurePanZoom(){
   }
 }
 
+let memberCodes = {};
+function computeMemberCodes(){
+  const map = {};
+  membersFlat.forEach(m=>{
+    const pid = m.parentId || "__root__";
+    if(!map[pid]) map[pid] = [];
+    map[pid].push(m);
+  });
+  const codes = {};
+  function walk(list, prefix){
+    list.forEach((node, idx)=>{
+      const code = prefix ? `${prefix}.${idx + 1}` : `${idx + 1}`;
+      codes[node.id] = code;
+      const kids = map[node.id];
+      if(kids && kids.length) walk(kids, code);
+    });
+  }
+  walk(map["__root__"] || [], "");
+  return codes;
+}
+
 const q = query(collection(db, "members"), orderBy("createdAt", "asc"));
 onSnapshot(q, (snap) => {
   allMembersFlat = [];
@@ -184,6 +210,7 @@ onSnapshot(q, (snap) => {
   membersFlat = currentFamily === "all"
     ? allMembersFlat
     : allMembersFlat.filter(m => m.familyId === currentFamily);
+  memberCodes = computeMemberCodes();
   renderTree();
   renderMemberSelects();
 }, (err) => {
@@ -245,11 +272,13 @@ function renderNode(member, childrenMap){
   node.dataset.id = member.id;
 
   const initials = (member.firstName || "?").trim().charAt(0);
+  const codeLabel = (!member.isDraft && memberCodes[member.id]) ? `<div class="node-code">#${memberCodes[member.id]}</div>` : "";
   node.innerHTML = `
     ${member.isDraft ? `<span class="draft-badge">مسودة</span>` : ""}
     <span class="node-status-dot" title="${member.status === 'deceased' ? 'متوفى' : 'على قيد الحياة'}"></span>
     <div class="node-photo">${member.photoURL ? `<img src="${member.photoURL}" alt="">` : initials}</div>
     <div class="node-name">${escapeHtml(member.firstName || "")}</div>
+    ${codeLabel}
     <button class="node-add" title="إضافة ابن/ابنة">+</button>
   `;
 
@@ -314,6 +343,13 @@ function findFamilySpouse(member){
 function showDetail(member){
   currentDetailMember = member;
   document.getElementById("detailName").textContent = member.firstName || "";
+  const codeRow = document.getElementById("detailCodeRow");
+  if(!member.isDraft && memberCodes[member.id]){
+    codeRow.style.display = "flex";
+    document.getElementById("detailCode").textContent = "#" + memberCodes[member.id];
+  } else {
+    codeRow.style.display = "none";
+  }
   document.getElementById("detailFullName").textContent = member.fullName || "—";
   document.getElementById("detailStatus").textContent = member.status === "deceased" ? "متوفى — رحمه الله" : "على قيد الحياة";
   const birthRow = document.getElementById("detailBirthYearRow");
@@ -1057,7 +1093,7 @@ searchInput.addEventListener("input", ()=>{
   }
   searchResultsEl.innerHTML = matches.map(m => `
     <div class="search-result-item" data-goto="${m.id}">
-      ${escapeHtml(m.firstName)}
+      ${escapeHtml(m.firstName)} ${memberCodes[m.id] ? `<span style="color:var(--gold);">#${memberCodes[m.id]}</span>` : ""}
       <small>${escapeHtml(m.fullName || "")} — ${escapeHtml(FAMILIES[m.familyId] || "")}</small>
     </div>
   `).join("");
