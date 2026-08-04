@@ -13,6 +13,7 @@ const REQUIRED_IDS = [
   "treeContainer", "familyTitle", "draftBar", "draftReviewOverlay",
   "linkSpouseOverlay", "lineageStopNote", "zoomInBtn", "zoomOutBtn", "zoomResetBtn",
   "searchInput", "searchResults", "newFullNameWarning", "rootFullNameWarning",
+  "newBirthYear", "newDeathYearWrap", "newBio", "rootBirthYear", "rootDeathYearWrap", "rootBio",
 ];
 const missingIds = REQUIRED_IDS.filter(id => !document.getElementById(id));
 if(missingIds.length > 0){
@@ -315,6 +316,27 @@ function showDetail(member){
   document.getElementById("detailName").textContent = member.firstName || "";
   document.getElementById("detailFullName").textContent = member.fullName || "—";
   document.getElementById("detailStatus").textContent = member.status === "deceased" ? "متوفى — رحمه الله" : "على قيد الحياة";
+  const birthRow = document.getElementById("detailBirthYearRow");
+  if(member.birthYear){
+    birthRow.style.display = "flex";
+    document.getElementById("detailBirthYear").textContent = member.birthYear;
+  } else {
+    birthRow.style.display = "none";
+  }
+  const deathRow = document.getElementById("detailDeathYearRow");
+  if(member.deathYear){
+    deathRow.style.display = "flex";
+    document.getElementById("detailDeathYear").textContent = member.deathYear;
+  } else {
+    deathRow.style.display = "none";
+  }
+  const bioEl = document.getElementById("detailBioText");
+  if(member.bio){
+    bioEl.style.display = "block";
+    bioEl.textContent = member.bio;
+  } else {
+    bioEl.style.display = "none";
+  }
   const spouseRow = document.getElementById("detailSpouseRow");
   if(member.spouseName){
     spouseRow.style.display = "flex";
@@ -484,6 +506,15 @@ document.getElementById("linkSpouseForm").addEventListener("submit", async (e)=>
   }
 });
 
+document.getElementById("newStatus").addEventListener("change", ()=>{
+  document.getElementById("newDeathYearWrap").style.display =
+    document.getElementById("newStatus").value === "deceased" ? "block" : "none";
+});
+document.getElementById("rootStatus").addEventListener("change", ()=>{
+  document.getElementById("rootDeathYearWrap").style.display =
+    document.getElementById("rootStatus").value === "deceased" ? "block" : "none";
+});
+
 /* ---------------- إضافة فرد جديد (يذهب لمراجعة الأدمن) ---------------- */
 let addMode = "child";       // 'child' | 'sibling' | 'father'
 let addTargetMember = null;  // الشخص اللي ضغطنا على اسمه لفتح النافذة
@@ -503,6 +534,7 @@ function openAddRelative(mode, targetMember){
     document.getElementById("addParentHint").textContent = labels.hint(targetMember.firstName);
     document.getElementById("addForm").reset();
     document.getElementById("addFormMsg").innerHTML = "";
+    document.getElementById("newDeathYearWrap").style.display = "none";
     const genderField = document.getElementById("newGender").closest(".field");
     if(mode === "father"){
       document.getElementById("newGender").value = "male";
@@ -527,6 +559,9 @@ document.getElementById("addForm").addEventListener("submit", async (e)=>{
   const gender = document.getElementById("newGender").value;
   const status = document.getElementById("newStatus").value;
   const spouseName = document.getElementById("newSpouse").value.trim();
+  const birthYear = document.getElementById("newBirthYear").value.trim();
+  const deathYear = document.getElementById("newDeathYear").value.trim();
+  const bio = document.getElementById("newBio").value.trim();
 
   if(!firstName || !fullName || !gender){ return; }
 
@@ -539,6 +574,9 @@ document.getElementById("addForm").addEventListener("submit", async (e)=>{
       parentKey,
       firstName, fullName, gender, status,
       spouseName: spouseName || null,
+      birthYear: birthYear || null,
+      deathYear: status === "deceased" ? (deathYear || null) : null,
+      bio: bio || null,
     });
     saveDraft();
     renderTree();
@@ -567,6 +605,9 @@ document.getElementById("addForm").addEventListener("submit", async (e)=>{
       familyId: addTargetMember.familyId || currentFamily,
       firstName, fullName, gender, status,
       spouseName: spouseName || null,
+      birthYear: birthYear || null,
+      deathYear: status === "deceased" ? (deathYear || null) : null,
+      bio: bio || null,
       photoURL,
       submitterName: identity.name,
       submitterEmail: identity.email,
@@ -696,6 +737,9 @@ document.getElementById("submitDraftBatchBtn").addEventListener("click", async (
       gender: d.gender || null,
       status: d.status,
       spouseName: d.spouseName || null,
+      birthYear: d.birthYear || null,
+      deathYear: d.deathYear || null,
+      bio: d.bio || null,
     }));
     await addDoc(collection(db, "pendingSubmissions"), {
       type: "draftBatch",
@@ -881,6 +925,7 @@ document.getElementById("openNewRootBtn").addEventListener("click", ()=>{
   ensureIdentity(()=>{
     document.getElementById("newRootForm").reset();
     document.getElementById("newRootMsg").innerHTML = "";
+    document.getElementById("rootDeathYearWrap").style.display = "none";
     document.getElementById("rootFamilyFieldWrap").style.display = currentFamily === "all" ? "block" : "none";
     openOverlay("newRootOverlay");
   });
@@ -900,6 +945,9 @@ document.getElementById("newRootForm").addEventListener("submit", async (e)=>{
   const gender = document.getElementById("rootGender").value;
   const status = document.getElementById("rootStatus").value;
   const spouseName = document.getElementById("rootSpouse").value.trim();
+  const birthYear = document.getElementById("rootBirthYear").value.trim();
+  const deathYear = document.getElementById("rootDeathYear").value.trim();
+  const bio = document.getElementById("rootBio").value.trim();
   if(!firstName || !fullName || !gender){ return; }
 
   const submitBtn = e.target.querySelector("button[type=submit]");
@@ -912,6 +960,9 @@ document.getElementById("newRootForm").addEventListener("submit", async (e)=>{
       parentId: null,
       firstName, fullName, gender, status,
       spouseName: spouseName || null,
+      birthYear: birthYear || null,
+      deathYear: status === "deceased" ? (deathYear || null) : null,
+      bio: bio || null,
       photoURL: null,
       submitterName: identity.name,
       submitterEmail: identity.email,
@@ -1076,6 +1127,72 @@ wireDuplicateWarning(
   () => currentFamily === "all" ? document.getElementById("rootFamily").value : currentFamily
 );
 
+/* ---------------- تصدير الشجرة كصورة أو PDF ---------------- */
+async function captureTreeCanvas(){
+  const wrap = document.querySelector(".tree-wrap");
+  const prevWrapOverflow = wrap.style.overflow;
+  const prevWrapHeight = wrap.style.height;
+  const prevTransform = treeContainer.style.transform;
+  const prevPosition = treeContainer.style.position;
+
+  wrap.style.overflow = "visible";
+  wrap.style.height = "auto";
+  treeContainer.style.transform = "none";
+  treeContainer.style.position = "static";
+
+  await new Promise(r => requestAnimationFrame(r));
+
+  const canvas = await html2canvas(treeContainer, { backgroundColor: "#0B1120", scale: 2 });
+
+  wrap.style.overflow = prevWrapOverflow;
+  wrap.style.height = prevWrapHeight;
+  treeContainer.style.transform = prevTransform;
+  treeContainer.style.position = prevPosition;
+  if(panZoomController) panZoomController.fit();
+
+  return canvas;
+}
+
+document.getElementById("exportImageBtn").addEventListener("click", async ()=>{
+  const btn = document.getElementById("exportImageBtn");
+  const original = btn.textContent;
+  btn.disabled = true; btn.textContent = "جارٍ التجهيز...";
+  try{
+    const canvas = await captureTreeCanvas();
+    canvas.toBlob((blob)=>{
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const dateStr = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `family-tree-${currentFamily}-${dateStr}.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  }catch(err){
+    alert("تعذّر التصدير: " + err.message);
+  }finally{
+    btn.disabled = false; btn.textContent = original;
+  }
+});
+
+document.getElementById("exportPdfBtn").addEventListener("click", async ()=>{
+  const btn = document.getElementById("exportPdfBtn");
+  const original = btn.textContent;
+  btn.disabled = true; btn.textContent = "جارٍ التجهيز...";
+  try{
+    const canvas = await captureTreeCanvas();
+    const { jsPDF } = window.jspdf;
+    const orientation = canvas.width > canvas.height ? "l" : "p";
+    const pdf = new jsPDF({ orientation, unit: "px", format: [canvas.width, canvas.height] });
+    pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, canvas.width, canvas.height);
+    const dateStr = new Date().toISOString().slice(0, 10);
+    pdf.save(`family-tree-${currentFamily}-${dateStr}.pdf`);
+  }catch(err){
+    alert("تعذّر التصدير: " + err.message);
+  }finally{
+    btn.disabled = false; btn.textContent = original;
+  }
+});
 /* ---------------- تقييد حقل "الاسم الأول" بكلمة واحدة فقط ---------------- */
 function restrictToSingleWord(input){
   input.addEventListener("input", ()=>{
