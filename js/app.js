@@ -1130,6 +1130,10 @@ wireDuplicateWarning(
 /* ---------------- تصدير الشجرة كصورة أو PDF ---------------- */
 async function captureTreeCanvas(){
   const wrap = document.querySelector(".tree-wrap");
+  const treeEl = treeContainer.querySelector(".tree");
+  if(!treeEl){
+    throw new Error("لا توجد بيانات بالشجرة لتصديرها.");
+  }
   const prevWrapOverflow = wrap.style.overflow;
   const prevWrapHeight = wrap.style.height;
   const prevTransform = treeContainer.style.transform;
@@ -1142,7 +1146,9 @@ async function captureTreeCanvas(){
 
   await new Promise(r => requestAnimationFrame(r));
 
-  const canvas = await html2canvas(treeContainer, { backgroundColor: "#0B1120", scale: 2 });
+  // نلتقط عنصر الشجرة (ul.tree) مباشرة بدل الحاوية الخارجية،
+  // لأن ul.tree يتمدد تلقائياً (min-width:max-content) ليشمل العرض الكامل الحقيقي للشجرة
+  const canvas = await html2canvas(treeEl, { backgroundColor: "#0B1120", scale: 2 });
 
   wrap.style.overflow = prevWrapOverflow;
   wrap.style.height = prevWrapHeight;
