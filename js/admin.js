@@ -87,6 +87,10 @@ function restrictToSingleWord(input){
 }
 restrictToSingleWord(document.getElementById("directFirstName"));
 restrictToSingleWord(document.getElementById("editFirstName"));
+document.getElementById("directStatus").addEventListener("change", ()=>{
+  document.getElementById("directDeathYearWrap").style.display =
+    document.getElementById("directStatus").value === "deceased" ? "block" : "none";
+});
 document.querySelectorAll(".tab-btn").forEach(btn=>{
   btn.addEventListener("click", ()=>{
     document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
@@ -104,7 +108,53 @@ onSnapshot(query(collection(db, "members"), orderBy("createdAt","asc")), (snap)=
   renderManageList();
   renderParentSelect();
   renderAdminTree();
+  renderStatsBar();
 });
+
+function computeGenerationDepth(){
+  const byId = {};
+  membersFlat.forEach(m => byId[m.id] = m);
+  function depthOf(m){
+    let depth = 1;
+    let current = m;
+    const visited = new Set();
+    while(current.parentId && byId[current.parentId] && !visited.has(current.id)){
+      visited.add(current.id);
+      current = byId[current.parentId];
+      depth++;
+    }
+    return depth;
+  }
+  return membersFlat.reduce((max, m) => Math.max(max, depthOf(m)), 0);
+}
+
+function renderStatsBar(){
+  const bar = document.getElementById("statsBar");
+  if(!bar) return;
+  const total = membersFlat.length;
+  const alive = membersFlat.filter(m => m.status !== "deceased").length;
+  const deceased = total - alive;
+  const generations = computeGenerationDepth();
+  const familyCounts = Object.keys(FAMILIES).map(fid => ({
+    label: FAMILIES[fid],
+    count: membersFlat.filter(m => m.familyId === fid).length,
+  }));
+
+  const cards = [
+    { value: total, label: "إجمالي الأفراد" },
+    { value: alive, label: "على قيد الحياة" },
+    { value: deceased, label: "متوفَون" },
+    { value: generations, label: "عدد الأجيال" },
+    ...familyCounts.map(f => ({ value: f.count, label: f.label })),
+  ];
+
+  bar.innerHTML = cards.map(c => `
+    <div class="stat-card">
+      <div class="stat-value">${c.value}</div>
+      <div class="stat-label">${escapeHtml(c.label)}</div>
+    </div>
+  `).join("");
+}
 
 function genderLabel(g){
   return g === "male" ? "ذكر" : g === "female" ? "أنثى" : "؟";
@@ -134,6 +184,9 @@ async function approveSingleSubmission(item){
     gender: item.gender || null,
     status: item.status,
     spouseName: item.spouseName || null,
+    birthYear: item.birthYear || null,
+    deathYear: item.deathYear || null,
+    bio: item.bio || null,
     photoURL: item.photoURL || null,
     addedByName: item.submitterName || null,
     createdAt: serverTimestamp(),
@@ -194,6 +247,9 @@ async function approveDraftBatch(item){
           gender: node.gender || null,
           status: node.status,
           spouseName: node.spouseName || null,
+          birthYear: node.birthYear || null,
+          deathYear: node.deathYear || null,
+          bio: node.bio || null,
           photoURL: null,
           addedByName: item.submitterName || null,
           parentId: resolvedParentId,
@@ -1004,6 +1060,9 @@ function openEdit(m){
   document.getElementById("editGender").value = m.gender || "";
   document.getElementById("editStatus").value = m.status || "alive";
   document.getElementById("editSpouse").value = m.spouseName || "";
+  document.getElementById("editBirthYear").value = m.birthYear || "";
+  document.getElementById("editDeathYear").value = m.deathYear || "";
+  document.getElementById("editBio").value = m.bio || "";
   document.getElementById("editMsg").innerHTML = "";
 
   const parentSel = document.getElementById("editParent");
@@ -1036,6 +1095,9 @@ document.getElementById("editForm").addEventListener("submit", async (e)=>{
       gender: document.getElementById("editGender").value || null,
       status: document.getElementById("editStatus").value,
       spouseName: document.getElementById("editSpouse").value.trim() || null,
+      birthYear: document.getElementById("editBirthYear").value.trim() || null,
+      deathYear: document.getElementById("editDeathYear").value.trim() || null,
+      bio: document.getElementById("editBio").value.trim() || null,
       parentId: document.getElementById("editParent").value || null,
     });
     document.getElementById("editOverlay").classList.add("hidden");
@@ -1069,12 +1131,16 @@ document.getElementById("directAddForm").addEventListener("submit", async (e)=>{
       gender: document.getElementById("directGender").value || null,
       status: document.getElementById("directStatus").value,
       spouseName: document.getElementById("directSpouse").value.trim() || null,
+      birthYear: document.getElementById("directBirthYear").value.trim() || null,
+      deathYear: document.getElementById("directDeathYear").value.trim() || null,
+      bio: document.getElementById("directBio").value.trim() || null,
       photoURL,
       createdAt: serverTimestamp(),
       approvedBy: auth.currentUser.email,
     });
     msgEl.innerHTML = `<div class="msg-ok">تمت الإضافة إلى الشجرة.</div>`;
     e.target.reset();
+    document.getElementById("directDeathYearWrap").style.display = "none";
   }catch(err){
     msgEl.innerHTML = `<div class="msg-err">${escapeHtml(err.message)}</div>`;
   }finally{
