@@ -191,10 +191,9 @@ function computeMemberCodes(){
     map[pid].push(m);
   });
   const codes = {};
-  function pad(n){ return String(n).padStart(2, "0"); }
   function walk(list, prefix){
     list.forEach((node, idx)=>{
-      const code = prefix + pad(idx + 1);
+      const code = prefix + String(idx + 1);
       codes[node.id] = code;
       const kids = map[node.id];
       if(kids && kids.length) walk(kids, code);
