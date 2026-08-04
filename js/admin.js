@@ -21,6 +21,44 @@ function escapeHtml(str=""){
   return String(str).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
 
+/* ---------------- رسائل "تواصل معنا" ---------------- */
+const TYPE_LABELS = { suggestion: "اقتراح تطوير", bug: "ملاحظة أو خطأ", other: "أخرى" };
+const feedbackList = document.getElementById("feedbackList");
+onSnapshot(query(collection(db, "feedback"), orderBy("submittedAt", "desc")), (snap)=>{
+  if(!feedbackList) return;
+  const msgs = [];
+  snap.forEach(d => msgs.push({ id: d.id, ...d.data() }));
+  document.getElementById("feedbackCount").textContent = msgs.length ? `(${msgs.length})` : "";
+  if(msgs.length === 0){
+    feedbackList.innerHTML = `<div class="card"><p class="card-meta" style="margin:0;">لا توجد رسائل حالياً.</p></div>`;
+    return;
+  }
+  feedbackList.innerHTML = msgs.map(m => `
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <h4>${escapeHtml(m.name || "—")}</h4>
+          <div class="card-meta">
+            ${escapeHtml(m.contact || "")}<br>
+            النوع: ${TYPE_LABELS[m.type] || m.type || "—"}<br>
+            ${formatLogDate(m.submittedAt)}
+          </div>
+        </div>
+      </div>
+      <p class="card-meta" style="margin-top:10px;color:var(--ivory);font-size:14px;line-height:1.8;">${escapeHtml(m.message || "")}</p>
+      <div class="card-actions">
+        <button class="btn btn-ghost" data-del-feedback="${m.id}">حذف</button>
+      </div>
+    </div>
+  `).join("");
+  feedbackList.querySelectorAll("[data-del-feedback]").forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
+      if(!confirm("متأكد من حذف هذي الرسالة؟")) return;
+      await deleteDoc(doc(db, "feedback", btn.dataset.delFeedback));
+    });
+  });
+});
+
 /* ---------------- سجل النشاط ---------------- */
 async function logActivity(action, summary){
   try{
@@ -152,9 +190,10 @@ function computeMemberCodes(){
     map[pid].push(m);
   });
   const codes = {};
+  function pad(n){ return String(n).padStart(2, "0"); }
   function walk(list, prefix){
     list.forEach((node, idx)=>{
-      const code = prefix ? `${prefix}.${idx + 1}` : `${idx + 1}`;
+      const code = prefix + pad(idx + 1);
       codes[node.id] = code;
       const kids = map[node.id];
       if(kids && kids.length) walk(kids, code);
