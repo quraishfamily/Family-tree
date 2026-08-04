@@ -1138,22 +1138,29 @@ async function captureTreeCanvas(){
   const prevWrapHeight = wrap.style.height;
   const prevTransform = treeContainer.style.transform;
   const prevPosition = treeContainer.style.position;
+  const prevPaddingTop = treeEl.style.paddingTop;
+  const prevPaddingBottom = treeEl.style.paddingBottom;
 
   wrap.style.overflow = "visible";
   wrap.style.height = "auto";
   treeContainer.style.transform = "none";
   treeContainer.style.position = "static";
+  // هامش أمان مؤقت: أزرار "+" والشارات فوق/تحت كل بطاقة تمتد خارج حدود الصندوق المحسوبة تلقائياً،
+  // فبدون هذا الهامش يُقتصّ أعلى وأسفل الشجرة عند الالتقاط
+  treeEl.style.paddingTop = "50px";
+  treeEl.style.paddingBottom = "60px";
 
   await new Promise(r => requestAnimationFrame(r));
+  await new Promise(r => setTimeout(r, 60));
 
-  // نلتقط عنصر الشجرة (ul.tree) مباشرة بدل الحاوية الخارجية،
-  // لأن ul.tree يتمدد تلقائياً (min-width:max-content) ليشمل العرض الكامل الحقيقي للشجرة
   const canvas = await html2canvas(treeEl, { backgroundColor: "#0B1120", scale: 2 });
 
   wrap.style.overflow = prevWrapOverflow;
   wrap.style.height = prevWrapHeight;
   treeContainer.style.transform = prevTransform;
   treeContainer.style.position = prevPosition;
+  treeEl.style.paddingTop = prevPaddingTop;
+  treeEl.style.paddingBottom = prevPaddingBottom;
   if(panZoomController) panZoomController.fit();
 
   return canvas;
