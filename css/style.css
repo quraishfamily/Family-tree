@@ -276,6 +276,12 @@ button{ font-family:inherit; cursor:pointer; }
   font-size:18px;
   color:var(--ivory);
 }
+.node-code{
+  font-size:10px;
+  color:var(--muted);
+  margin-top:-4px;
+  letter-spacing:.03em;
+}
 .node-status-dot{
   width:8px; height:8px; border-radius:50%;
   background:var(--gold);
