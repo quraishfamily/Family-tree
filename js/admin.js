@@ -142,9 +142,32 @@ document.querySelectorAll(".tab-btn").forEach(btn=>{
 
 /* ---------------- قراءة الأعضاء الحاليين (لكل استخدامات اللوحة) ---------------- */
 let membersFlat = [];
+let memberCodes = {};
+
+function computeMemberCodes(){
+  const map = {};
+  membersFlat.forEach(m=>{
+    const pid = m.parentId || "__root__";
+    if(!map[pid]) map[pid] = [];
+    map[pid].push(m);
+  });
+  const codes = {};
+  function walk(list, prefix){
+    list.forEach((node, idx)=>{
+      const code = prefix ? `${prefix}.${idx + 1}` : `${idx + 1}`;
+      codes[node.id] = code;
+      const kids = map[node.id];
+      if(kids && kids.length) walk(kids, code);
+    });
+  }
+  walk(map["__root__"] || [], "");
+  return codes;
+}
+
 onSnapshot(query(collection(db, "members"), orderBy("createdAt","asc")), (snap)=>{
   membersFlat = [];
   snap.forEach(d => membersFlat.push({ id: d.id, ...d.data() }));
+  memberCodes = computeMemberCodes();
   renderManageList();
   renderParentSelect();
   renderAdminTree();
@@ -200,7 +223,8 @@ function genderLabel(g){
   return g === "male" ? "ذكر" : g === "female" ? "أنثى" : "؟";
 }
 function memberLabel(m){
-  return `${m.firstName} — ${m.fullName || ""} (${familyLabel(m.familyId)} · ${genderLabel(m.gender)})`;
+  const code = memberCodes[m.id] ? `#${memberCodes[m.id]} ` : "";
+  return `${code}${m.firstName} — ${m.fullName || ""} (${familyLabel(m.familyId)} · ${genderLabel(m.gender)})`;
 }
 
 function renderParentSelect(){
@@ -725,7 +749,7 @@ adminSearchInput.addEventListener("input", ()=>{
   }
   adminSearchResultsEl.innerHTML = matches.map(m => `
     <div class="search-result-item" data-goto="${m.id}">
-      ${escapeHtml(m.firstName)}
+      ${escapeHtml(m.firstName)} ${memberCodes[m.id] ? `<span style="color:var(--gold);">#${memberCodes[m.id]}</span>` : ""}
       <small>${escapeHtml(m.fullName || "")} — ${escapeHtml(familyLabel(m.familyId))}</small>
     </div>
   `).join("");
@@ -885,10 +909,12 @@ function renderAdminNode(member, childrenMap){
   node.dataset.id = member.id;
 
   const initials = (member.firstName || "?").trim().charAt(0);
+  const codeLabel = (!member.isGhost && memberCodes[member.id]) ? `<div class="node-code">#${memberCodes[member.id]}</div>` : "";
   node.innerHTML = `
     ${member.isGhost ? `<span class="draft-badge">بانتظار الموافقة</span>` : ""}
     <div class="node-photo">${initials}</div>
     <div class="node-name">${escapeHtml(member.firstName || "")}</div>
+    ${codeLabel}
   `;
 
   if(member.isGhost){
@@ -1119,7 +1145,8 @@ function openDragRelationChoice(sourceId, targetId){
   const source = membersFlat.find(m => m.id === sourceId);
   const target = membersFlat.find(m => m.id === targetId);
   if(!source || !target) return;
-  document.getElementById("dragRelationText").textContent = `${source.firstName} ← ${target.firstName}`;
+  document.getElementById("dragRelationText").textContent =
+    `${source.firstName}${memberCodes[source.id] ? " #"+memberCodes[source.id] : ""} ← ${target.firstName}${memberCodes[target.id] ? " #"+memberCodes[target.id] : ""}`;
   document.getElementById("dragRelationOverlay").classList.remove("hidden");
 }
 
@@ -1161,6 +1188,7 @@ function renderManageList(){
   const rows = membersFlat.map(m => `
     <tr>
       <td>${m.photoURL ? `<img class="thumb" src="${m.photoURL}">` : "—"}</td>
+      <td>${memberCodes[m.id] ? "#" + memberCodes[m.id] : "—"}</td>
       <td>${escapeHtml(m.firstName)}</td>
       <td>${escapeHtml(m.fullName || "—")}</td>
       <td>${escapeHtml(familyLabel(m.familyId))}</td>
@@ -1173,7 +1201,7 @@ function renderManageList(){
     </tr>
   `).join("");
   wrap.innerHTML = `<table class="table"><thead><tr>
-    <th></th><th>الاسم</th><th>الرباعي</th><th>العائلة</th><th>الجنس</th><th>الحالة</th><th></th>
+    <th></th><th>المعرّف</th><th>الاسم</th><th>الرباعي</th><th>العائلة</th><th>الجنس</th><th>الحالة</th><th></th>
   </tr></thead><tbody>${rows}</tbody></table>`;
 
   wrap.querySelectorAll("[data-edit]").forEach(btn=>{
