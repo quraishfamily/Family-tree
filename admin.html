@@ -44,6 +44,7 @@
   .admin-legend{ display:flex; gap:18px; flex-wrap:wrap; font-size:13px; color:var(--muted); margin-bottom:10px; }
   .admin-legend span{ display:inline-flex; align-items:center; gap:6px; }
   .legend-dot{ width:12px; height:12px; border-radius:50%; display:inline-block; }
+  .admin-search-row{ margin-bottom:14px; max-width:320px; }
   .stats-bar{
     display:grid;
     grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));
@@ -106,6 +107,12 @@
     </div>
 
     <div class="panel active" id="panel-interactive">
+      <div class="admin-search-row">
+        <div class="search-box">
+          <input type="text" id="adminSearchInput" placeholder="بحث بالاسم للتعديل...">
+          <div class="search-results hidden" id="adminSearchResults"></div>
+        </div>
+      </div>
       <div class="stats-bar" id="statsBar"></div>
       <div class="admin-legend">
         <span><span class="legend-dot" style="background:var(--navy-panel);border:1px solid var(--navy-line);"></span> شخص موجود بالشجرة — اضغط للتعديل، أو اسحبه على شخص ثاني لربطهم</span>
