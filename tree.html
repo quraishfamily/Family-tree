@@ -89,7 +89,7 @@
         <button class="btn" id="openAddFatherBtn">إضافة أب</button>
       </div>
       <div class="form-actions" id="linkSpouseWrap" style="display:none;">
-        <button class="btn btn-ghost" id="openLinkSpouseBtn" style="width:100%;">ربط الزوج (لو كان من نفس العائلة)</button>
+        <button class="btn btn-ghost" id="openLinkSpouseBtn" style="width:100%;">ربط الزوج / الزوجة</button>
       </div>
       <div class="form-actions">
         <button class="btn btn-ghost" id="openChainBtn" style="width:100%;">ربط قريب عبر جد مشترك (سلسلة كاملة)</button>
@@ -327,16 +327,24 @@
   <div class="overlay hidden" id="linkSpouseOverlay">
     <div class="modal">
       <button class="close" data-close="linkSpouseOverlay">×</button>
-      <h3>ربط الزوج</h3>
-      <p class="hint" id="linkSpouseHint">ربط زوج لـ: —</p>
+      <h3>ربط الزوج / الزوجة</h3>
+      <p class="hint" id="linkSpouseHint">ربط زوج/زوجة لـ: —</p>
       <form id="linkSpouseForm">
         <div class="field">
-          <label>اختر الزوج من أفراد نفس العائلة</label>
-          <select id="linkSpousePerson" required></select>
+          <label>هل هو/هي مسجّل بالشجرة؟</label>
+          <select id="linkSpouseMode">
+            <option value="existing">نعم، اختره من القائمة</option>
+            <option value="new">لا، أدخل الاسم يدوياً</option>
+          </select>
         </div>
-        <p class="hint">
-          لو الزوج مو مسجّل بالشجرة بعد، أضفه أول كفرع جديد أو عبر "ربط قريب عبر جد مشترك"، وبعدها رجع لهذه الخطوة.
-        </p>
+        <div class="field" id="linkSpouseExistingWrap">
+          <label>اختر من أفراد الشجرة</label>
+          <select id="linkSpousePerson"></select>
+        </div>
+        <div class="field" id="linkSpouseNewWrap" style="display:none;">
+          <label>اسم الزوج/الزوجة</label>
+          <input type="text" id="linkSpouseNewName" placeholder="مثال: نورة سعيد آل فلان">
+        </div>
         <div class="form-actions">
           <button type="submit" class="btn btn-solid">إرسال طلب الربط</button>
         </div>
