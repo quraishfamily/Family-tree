@@ -14,6 +14,7 @@ const REQUIRED_IDS = [
   "linkSpouseOverlay", "lineageStopNote", "zoomInBtn", "zoomOutBtn", "zoomResetBtn",
   "searchInput", "searchResults", "newFullNameWarning", "rootFullNameWarning",
   "newBirthYear", "newDeathYearWrap", "newBio", "rootBirthYear", "rootDeathYearWrap", "rootBio",
+  "linkSpouseMode", "linkSpouseExistingWrap", "linkSpouseNewWrap", "linkSpouseNewName",
 ];
 const missingIds = REQUIRED_IDS.filter(id => !document.getElementById(id));
 if(missingIds.length > 0){
@@ -395,7 +396,7 @@ function showDetail(member){
   const lineageBlocked = isFemale && !member.isDraft && !familySpouse;
 
   document.getElementById("lineageStopNote").style.display = lineageBlocked ? "block" : "none";
-  document.getElementById("linkSpouseWrap").style.display = (isFemale && !member.isDraft) ? "block" : "none";
+  document.getElementById("linkSpouseWrap").style.display = member.isDraft ? "none" : "block";
 
   const addChildBtn = document.getElementById("openAddChildBtn");
   if(lineageBlocked){
@@ -486,19 +487,32 @@ document.getElementById("correctionForm").addEventListener("submit", async (e)=>
 document.getElementById("openLinkSpouseBtn").addEventListener("click", ()=>{
   ensureIdentity(()=>{
     closeOverlay("detailOverlay");
-    document.getElementById("linkSpouseHint").textContent = `ربط زوج لـ: ${currentDetailMember.firstName}`;
-    const sel = document.getElementById("linkSpousePerson");
+    document.getElementById("linkSpouseHint").textContent = `ربط زوج/زوجة لـ: ${currentDetailMember.firstName}`;
+    document.getElementById("linkSpouseMode").value = "existing";
+    document.getElementById("linkSpouseExistingWrap").style.display = "block";
+    document.getElementById("linkSpouseNewWrap").style.display = "none";
+    document.getElementById("linkSpouseNewName").value = "";
+
+    const oppositeGender = currentDetailMember.gender === "male" ? "female"
+      : currentDetailMember.gender === "female" ? "male" : null;
     const candidates = allMembersFlat.filter(m =>
-      m.gender === "male" &&
-      m.familyId === currentDetailMember.familyId &&
-      m.id !== currentDetailMember.id
+      m.id !== currentDetailMember.id &&
+      (!oppositeGender || m.gender === oppositeGender)
     );
+    const sel = document.getElementById("linkSpousePerson");
     sel.innerHTML = `<option value="">— اختر —</option>` + candidates.map(m =>
-      `<option value="${m.id}">${escapeHtml(m.firstName)} — ${escapeHtml(m.fullName || "")}</option>`
+      `<option value="${m.id}">${escapeHtml(m.firstName)} — ${escapeHtml(m.fullName || "")} (${escapeHtml(FAMILIES[m.familyId] || "")})</option>`
     ).join("");
+
     document.getElementById("linkSpouseMsg").innerHTML = "";
     openOverlay("linkSpouseOverlay");
   });
+});
+
+document.getElementById("linkSpouseMode").addEventListener("change", ()=>{
+  const isExisting = document.getElementById("linkSpouseMode").value === "existing";
+  document.getElementById("linkSpouseExistingWrap").style.display = isExisting ? "block" : "none";
+  document.getElementById("linkSpouseNewWrap").style.display = isExisting ? "none" : "block";
 });
 
 document.getElementById("linkSpouseForm").addEventListener("submit", async (e)=>{
@@ -509,29 +523,41 @@ document.getElementById("linkSpouseForm").addEventListener("submit", async (e)=>
   const identity = getIdentity();
   if(!identity){ ensureIdentity(()=>{}); return; }
 
-  const spouseId = document.getElementById("linkSpousePerson").value;
-  if(!spouseId){
-    msgEl.innerHTML = `<div class="msg-err">اختر الزوج قبل الإرسال.</div>`;
-    return;
+  const mode = document.getElementById("linkSpouseMode").value;
+  const payload = {
+    type: "spouseLink",
+    familyId: currentDetailMember.familyId || currentFamily,
+    targetMemberId: currentDetailMember.id,
+    targetMemberFirstName: currentDetailMember.firstName,
+    submitterName: identity.name,
+    submitterEmail: identity.email,
+    submitterPhone: identity.phone,
+    submittedAt: serverTimestamp(),
+  };
+
+  if(mode === "existing"){
+    const spouseId = document.getElementById("linkSpousePerson").value;
+    if(!spouseId){
+      msgEl.innerHTML = `<div class="msg-err">اختر الزوج/الزوجة قبل الإرسال.</div>`;
+      return;
+    }
+    const spouse = allMembersFlat.find(m => m.id === spouseId);
+    payload.spouseMemberId = spouseId;
+    payload.spouseMemberFirstName = spouse ? spouse.firstName : "";
+  } else {
+    const newName = document.getElementById("linkSpouseNewName").value.trim();
+    if(!newName){
+      msgEl.innerHTML = `<div class="msg-err">اكتب اسم الزوج/الزوجة قبل الإرسال.</div>`;
+      return;
+    }
+    payload.spouseFreeText = newName;
   }
-  const spouse = allMembersFlat.find(m => m.id === spouseId);
 
   const submitBtn = e.target.querySelector("button[type=submit]");
   submitBtn.disabled = true;
   submitBtn.textContent = "جارٍ الإرسال...";
   try{
-    await addDoc(collection(db, "pendingSubmissions"), {
-      type: "spouseLink",
-      familyId: currentDetailMember.familyId || currentFamily,
-      targetMemberId: currentDetailMember.id,
-      targetMemberFirstName: currentDetailMember.firstName,
-      spouseMemberId: spouseId,
-      spouseMemberFirstName: spouse ? spouse.firstName : "",
-      submitterName: identity.name,
-      submitterEmail: identity.email,
-      submitterPhone: identity.phone,
-      submittedAt: serverTimestamp(),
-    });
+    await addDoc(collection(db, "pendingSubmissions"), payload);
     msgEl.innerHTML = `<div class="msg-ok">تم إرسال طلب الربط، بيراجعه الأدمن.</div>`;
     setTimeout(()=> closeOverlay("linkSpouseOverlay"), 1600);
   }catch(err){
@@ -1164,6 +1190,18 @@ wireDuplicateWarning(
 );
 
 /* ---------------- تصدير الشجرة كصورة أو PDF ---------------- */
+const PRINT_COLOR_OVERRIDES = {
+  "--navy-deep": "#ffffff",
+  "--navy-panel": "#f4f2ec",
+  "--navy-panel-2": "#e9e6da",
+  "--navy-line": "#c8c2ae",
+  "--gold": "#8a6d1f",
+  "--gold-light": "#6b5416",
+  "--gold-dim": "#a68a3d",
+  "--ivory": "#1a1a1a",
+  "--muted": "#5a5a5a",
+};
+
 async function captureTreeCanvas(){
   const wrap = document.querySelector(".tree-wrap");
   const treeEl = treeContainer.querySelector(".tree");
@@ -1185,11 +1223,15 @@ async function captureTreeCanvas(){
   // فبدون هذا الهامش يُقتصّ أعلى وأسفل الشجرة عند الالتقاط
   treeEl.style.paddingTop = "50px";
   treeEl.style.paddingBottom = "60px";
+  // ألوان فاتحة موفّرة للحبر وقت التصدير فقط (تُطبَّق كمتغيرات CSS تتوارثها كل عناصر الشجرة)
+  Object.entries(PRINT_COLOR_OVERRIDES).forEach(([key, val]) => treeEl.style.setProperty(key, val));
 
   await new Promise(r => requestAnimationFrame(r));
   await new Promise(r => setTimeout(r, 60));
 
-  const canvas = await html2canvas(treeEl, { backgroundColor: "#0B1120", scale: 2 });
+  // نلتقط عنصر الشجرة (ul.tree) مباشرة بدل الحاوية الخارجية،
+  // لأن ul.tree يتمدد تلقائياً (min-width:max-content) ليشمل العرض الكامل الحقيقي للشجرة
+  const canvas = await html2canvas(treeEl, { backgroundColor: "#ffffff", scale: 2 });
 
   wrap.style.overflow = prevWrapOverflow;
   wrap.style.height = prevWrapHeight;
@@ -1197,6 +1239,7 @@ async function captureTreeCanvas(){
   treeContainer.style.position = prevPosition;
   treeEl.style.paddingTop = prevPaddingTop;
   treeEl.style.paddingBottom = prevPaddingBottom;
+  Object.keys(PRINT_COLOR_OVERRIDES).forEach(key => treeEl.style.removeProperty(key));
   if(panZoomController) panZoomController.fit();
 
   return canvas;
