@@ -562,11 +562,14 @@ onSnapshot(collection(db, "pendingSubmissions"), (snap)=>{
         const relLabel = s.relation === "father" ? "أب لـ" : "ابن/ابنة لـ";
         const prevName = i === 0 ? item.anchorFirstName : item.steps[i-1].firstName;
         return `
-          <div style="padding:8px 0;border-bottom:1px solid var(--navy-line);font-size:14px;">
-            <strong>${escapeHtml(s.firstName)}</strong> (${escapeHtml(s.fullName || "—")})
-            — ${relLabel} <em>${escapeHtml(prevName || "—")}</em>
-            ${s.status === "deceased" ? " · متوفى" : ""}
-            ${s.spouseName ? " · الزوج/الزوجة: " + escapeHtml(s.spouseName) : ""}
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--navy-line);font-size:14px;">
+            <span>
+              <strong>${escapeHtml(s.firstName)}</strong> (${escapeHtml(s.fullName || "—")})
+              — ${relLabel} <em>${escapeHtml(prevName || "—")}</em>
+              ${s.status === "deceased" ? " · متوفى" : ""}
+              ${s.spouseName ? " · الزوج/الزوجة: " + escapeHtml(s.spouseName) : ""}
+            </span>
+            <button class="btn btn-danger" style="padding:4px 10px;font-size:12px;flex-shrink:0;" data-exclude-step="${item.id}" data-exclude-index="${i}">استبعد</button>
           </div>`;
       }).join("");
       const card = document.createElement("div");
@@ -637,12 +640,15 @@ onSnapshot(collection(db, "pendingSubmissions"), (snap)=>{
         return p ? p.firstName : "جذر جديد";
       }
       const nodesHtml = item.nodes.map(n => `
-        <div style="padding:8px 0;border-bottom:1px solid var(--navy-line);font-size:14px;">
-          <strong>${escapeHtml(n.firstName)}</strong> (${escapeHtml(n.fullName || "—")})
-          — تحت: <em>${escapeHtml(parentLabelFor(n, item.nodes))}</em>
-          ${n.status === "deceased" ? " · متوفى" : ""}
-          ${n.spouseName ? " · الزوج/الزوجة: " + escapeHtml(n.spouseName) : ""}
-          · العائلة: ${escapeHtml(familyLabel(n.familyId))}
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--navy-line);font-size:14px;">
+          <span>
+            <strong>${escapeHtml(n.firstName)}</strong> (${escapeHtml(n.fullName || "—")})
+            — تحت: <em>${escapeHtml(parentLabelFor(n, item.nodes))}</em>
+            ${n.status === "deceased" ? " · متوفى" : ""}
+            ${n.spouseName ? " · الزوج/الزوجة: " + escapeHtml(n.spouseName) : ""}
+            · العائلة: ${escapeHtml(familyLabel(n.familyId))}
+          </span>
+          <button class="btn btn-danger" style="padding:4px 10px;font-size:12px;flex-shrink:0;" data-exclude-node="${item.id}" data-exclude-localid="${n.localId}">استبعد</button>
         </div>`).join("");
       const card = document.createElement("div");
       card.className = "card";
@@ -830,6 +836,22 @@ onSnapshot(collection(db, "pendingSubmissions"), (snap)=>{
       const isHidden = wrap.style.display === "none";
       wrap.style.display = isHidden ? "block" : "none";
       btn.textContent = isHidden ? "إخفاء التفاصيل ▲" : "عرض تفاصيل الأشخاص المقترحين ▾";
+    });
+  });
+
+  panelPending.querySelectorAll("[data-exclude-node]").forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
+      const item = items.find(i => i.id === btn.dataset.excludeNode);
+      if(!item) return;
+      await excludeNodeFromDraftBatch(item, btn.dataset.excludeLocalid);
+    });
+  });
+
+  panelPending.querySelectorAll("[data-exclude-step]").forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
+      const item = items.find(i => i.id === btn.dataset.excludeStep);
+      if(!item) return;
+      await excludeStepFromChain(item, Number(btn.dataset.excludeIndex));
     });
   });
 
@@ -1258,51 +1280,60 @@ document.getElementById("ghostEditForm").addEventListener("submit", async (e)=>{
   }
 });
 
+/* ---------------- استبعاد شخص واحد من دفعة/سلسلة معلّقة (مشتركة بين الشجرة التفاعلية وبطاقات القوائم) ---------------- */
+async function excludeNodeFromDraftBatch(item, localId){
+  const idsToRemove = new Set([localId]);
+  let changed = true;
+  while(changed){
+    changed = false;
+    item.nodes.forEach(n=>{
+      const parentLocalId = n.parentRef && n.parentRef.startsWith("draft:") ? n.parentRef.slice(6) : null;
+      if(parentLocalId && idsToRemove.has(parentLocalId) && !idsToRemove.has(n.localId)){
+        idsToRemove.add(n.localId);
+        changed = true;
+      }
+    });
+  }
+  const removedNode = item.nodes.find(n => n.localId === localId);
+  const extra = idsToRemove.size - 1;
+  const confirmMsg = extra > 0
+    ? `هذا الشخص له ${extra} إضافة تابعة له بنفس الطلب، بيتم استبعادها كلها معه. متأكد؟`
+    : "متأكد من استبعاد هذا الشخص من الطلب؟ الباقي بيتم قبوله بشكل طبيعي، وما يحتاج مقدّم الطلب يعيد إدخال أي شيء.";
+  if(!confirm(confirmMsg)) return false;
+
+  const remainingNodes = item.nodes.filter(n => !idsToRemove.has(n.localId));
+  if(remainingNodes.length === 0){
+    await deleteDoc(doc(db, "pendingSubmissions", item.id));
+  } else {
+    await updateDoc(doc(db, "pendingSubmissions", item.id), { nodes: remainingNodes });
+  }
+  await logActivity("remove_from_group", `استبعد "${removedNode ? removedNode.firstName : "—"}" من دفعة إضافات سريعة (والباقي بانتظار القبول)`);
+  return true;
+}
+
+async function excludeStepFromChain(item, index){
+  const removedStep = item.steps[index];
+  if(!confirm("متأكد من استبعاد هذه الحلقة من السلسلة؟ الحلقة اللي بعدها بتتصل تلقائياً بالحلقة اللي قبلها، وما يحتاج مقدّم الطلب يعيد إدخال أي شيء.")) return false;
+  const remainingSteps = item.steps.filter((s, i) => i !== index);
+  if(remainingSteps.length === 0){
+    await deleteDoc(doc(db, "pendingSubmissions", item.id));
+  } else {
+    await updateDoc(doc(db, "pendingSubmissions", item.id), { steps: remainingSteps });
+  }
+  await logActivity("remove_from_group", `استبعد "${removedStep ? removedStep.firstName : "—"}" من سلسلة قرابة (والباقي بانتظار القبول)`);
+  return true;
+}
+
 document.getElementById("ghostRemoveSingleBtn").addEventListener("click", async ()=>{
   const item = pendingItemsGlobal.find(i => i.id === currentGhostItemId);
   if(!item) return;
-  let removedName = "—";
-
+  let didRemove = false;
   if(currentGhostItemType === "draftBatch"){
-    const removedNode = item.nodes.find(n => n.localId === currentGhostSubKey);
-    removedName = removedNode ? removedNode.firstName : "—";
-    const idsToRemove = new Set([currentGhostSubKey]);
-    let changed = true;
-    while(changed){
-      changed = false;
-      item.nodes.forEach(n=>{
-        const parentLocalId = n.parentRef && n.parentRef.startsWith("draft:") ? n.parentRef.slice(6) : null;
-        if(parentLocalId && idsToRemove.has(parentLocalId) && !idsToRemove.has(n.localId)){
-          idsToRemove.add(n.localId);
-          changed = true;
-        }
-      });
-    }
-    const extra = idsToRemove.size - 1;
-    const confirmMsg = extra > 0
-      ? `هذا الشخص له ${extra} إضافة تابعة له بنفس الطلب، بيتم حذفها كلها معه. متأكد؟`
-      : "متأكد من حذف هذا الشخص من الطلب؟ الباقي بيتم قبوله بشكل طبيعي.";
-    if(!confirm(confirmMsg)) return;
-
-    const remainingNodes = item.nodes.filter(n => !idsToRemove.has(n.localId));
-    if(remainingNodes.length === 0){
-      await deleteDoc(doc(db, "pendingSubmissions", item.id));
-    } else {
-      await updateDoc(doc(db, "pendingSubmissions", item.id), { nodes: remainingNodes });
-    }
+    didRemove = await excludeNodeFromDraftBatch(item, currentGhostSubKey);
   } else if(currentGhostItemType === "chain"){
-    const removedStep = item.steps[currentGhostSubKey];
-    removedName = removedStep ? removedStep.firstName : "—";
-    if(!confirm("متأكد من حذف هذه الحلقة من السلسلة؟ الحلقة اللي بعدها بتتصل تلقائياً بالحلقة اللي قبلها.")) return;
-    const remainingSteps = item.steps.filter((s, i) => i !== currentGhostSubKey);
-    if(remainingSteps.length === 0){
-      await deleteDoc(doc(db, "pendingSubmissions", item.id));
-    } else {
-      await updateDoc(doc(db, "pendingSubmissions", item.id), { steps: remainingSteps });
-    }
+    didRemove = await excludeStepFromChain(item, currentGhostSubKey);
   }
-  document.getElementById("ghostDetailOverlay").classList.add("hidden");
-  await logActivity("remove_from_group", `حذف "${removedName}" من مجموعة معلّقة (${PENDING_TYPE_LABELS[currentGhostItemType] || currentGhostItemType})`);
+  if(didRemove) document.getElementById("ghostDetailOverlay").classList.add("hidden");
 });
 
 /* ---------------- ربط بالسحب والإسقاط ---------------- */
