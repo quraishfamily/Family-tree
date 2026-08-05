@@ -169,6 +169,41 @@ document.getElementById("directStatus").addEventListener("change", ()=>{
   document.getElementById("directDeathYearWrap").style.display =
     document.getElementById("directStatus").value === "deceased" ? "block" : "none";
 });
+
+function populateSpouseSelect(selectEl, gender, excludeId){
+  const opposite = gender === "male" ? "female" : gender === "female" ? "male" : null;
+  const candidates = membersFlat.filter(m =>
+    m.id !== excludeId && (!opposite || m.gender === opposite)
+  );
+  const current = selectEl.value;
+  selectEl.innerHTML = `<option value="">— اختر —</option>` + candidates.map(m =>
+    `<option value="${m.id}">${escapeHtml(m.firstName)} — ${escapeHtml(m.fullName || "")} (${escapeHtml(familyLabel(m.familyId))})</option>`
+  ).join("");
+  selectEl.value = current;
+}
+
+document.getElementById("editSpouseMode").addEventListener("change", ()=>{
+  const isExisting = document.getElementById("editSpouseMode").value === "existing";
+  document.getElementById("editSpouseExistingWrap").style.display = isExisting ? "block" : "none";
+  document.getElementById("editSpouseNewWrap").style.display = isExisting ? "none" : "block";
+});
+document.getElementById("editGender").addEventListener("change", ()=>{
+  populateSpouseSelect(document.getElementById("editSpousePerson"), document.getElementById("editGender").value, document.getElementById("editId").value);
+});
+
+document.getElementById("directSpouseMode").addEventListener("change", ()=>{
+  const mode = document.getElementById("directSpouseMode").value;
+  document.getElementById("directSpouseExistingWrap").style.display = mode === "existing" ? "block" : "none";
+  document.getElementById("directSpouseNewWrap").style.display = mode === "new" ? "block" : "none";
+  if(mode === "existing"){
+    populateSpouseSelect(document.getElementById("directSpousePerson"), document.getElementById("directGender").value, null);
+  }
+});
+document.getElementById("directGender").addEventListener("change", ()=>{
+  if(document.getElementById("directSpouseMode").value === "existing"){
+    populateSpouseSelect(document.getElementById("directSpousePerson"), document.getElementById("directGender").value, null);
+  }
+});
 document.querySelectorAll(".tab-btn").forEach(btn=>{
   btn.addEventListener("click", ()=>{
     document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
@@ -1289,7 +1324,21 @@ function openEdit(m){
   document.getElementById("editFullName").value = m.fullName || "";
   document.getElementById("editGender").value = m.gender || "";
   document.getElementById("editStatus").value = m.status || "alive";
-  document.getElementById("editSpouse").value = m.spouseName || "";
+
+  populateSpouseSelect(document.getElementById("editSpousePerson"), m.gender, m.id);
+  if(m.spouseId){
+    document.getElementById("editSpouseMode").value = "existing";
+    document.getElementById("editSpouseExistingWrap").style.display = "block";
+    document.getElementById("editSpouseNewWrap").style.display = "none";
+    document.getElementById("editSpousePerson").value = m.spouseId;
+    document.getElementById("editSpouseNewName").value = "";
+  } else {
+    document.getElementById("editSpouseMode").value = "new";
+    document.getElementById("editSpouseExistingWrap").style.display = "none";
+    document.getElementById("editSpouseNewWrap").style.display = "block";
+    document.getElementById("editSpousePerson").value = "";
+    document.getElementById("editSpouseNewName").value = m.spouseName || "";
+  }
   document.getElementById("editBirthYear").value = m.birthYear || "";
   document.getElementById("editDeathYear").value = m.deathYear || "";
   document.getElementById("editBio").value = m.bio || "";
@@ -1317,20 +1366,48 @@ document.getElementById("editForm").addEventListener("submit", async (e)=>{
   e.preventDefault();
   const id = document.getElementById("editId").value;
   const msgEl = document.getElementById("editMsg");
+
+  const spouseMode = document.getElementById("editSpouseMode").value;
+  let newSpouseId = null;
+  let newSpouseName = null;
+  if(spouseMode === "existing"){
+    newSpouseId = document.getElementById("editSpousePerson").value || null;
+    if(newSpouseId){
+      const spouseMember = membersFlat.find(m => m.id === newSpouseId);
+      newSpouseName = spouseMember ? (spouseMember.fullName || spouseMember.firstName) : null;
+    }
+  } else {
+    newSpouseName = document.getElementById("editSpouseNewName").value.trim() || null;
+  }
+
   const newVals = {
     firstName: document.getElementById("editFirstName").value.trim(),
     fullName: document.getElementById("editFullName").value.trim(),
     familyId: document.getElementById("editFamily").value,
     gender: document.getElementById("editGender").value || null,
     status: document.getElementById("editStatus").value,
-    spouseName: document.getElementById("editSpouse").value.trim() || null,
+    spouseId: newSpouseId,
+    spouseName: newSpouseName,
     birthYear: document.getElementById("editBirthYear").value.trim() || null,
     deathYear: document.getElementById("editDeathYear").value.trim() || null,
     bio: document.getElementById("editBio").value.trim() || null,
     parentId: document.getElementById("editParent").value || null,
   };
   try{
+    const oldSpouseId = editingSnapshot ? editingSnapshot.spouseId : null;
+
     await updateDoc(doc(db, "members", id), newVals);
+
+    // لو تغيّر الزوج/الزوجة المربوط، امسح الربط العكسي عن الشخص القديم
+    if(oldSpouseId && oldSpouseId !== newSpouseId){
+      await updateDoc(doc(db, "members", oldSpouseId), { spouseId: null, spouseName: null }).catch(()=>{});
+    }
+    // لو تم اختيار زوج/زوجة موجود، اربطه رجوعاً بهذا الشخص
+    if(newSpouseId){
+      const thisFullName = newVals.fullName || newVals.firstName;
+      await updateDoc(doc(db, "members", newSpouseId), { spouseId: id, spouseName: thisFullName }).catch(()=>{});
+    }
+
     document.getElementById("editOverlay").classList.add("hidden");
 
     if(editingSnapshot){
@@ -1388,14 +1465,29 @@ document.getElementById("directAddForm").addEventListener("submit", async (e)=>{
     const directFullName = document.getElementById("directFullName").value.trim();
     const directFamilyId = document.getElementById("directFamily").value;
     const directParentId = document.getElementById("directParent").value || null;
-    await addDoc(collection(db, "members"), {
+
+    const spouseMode = document.getElementById("directSpouseMode").value;
+    let directSpouseId = null;
+    let directSpouseName = null;
+    if(spouseMode === "existing"){
+      directSpouseId = document.getElementById("directSpousePerson").value || null;
+      if(directSpouseId){
+        const spouseMember = membersFlat.find(m => m.id === directSpouseId);
+        directSpouseName = spouseMember ? (spouseMember.fullName || spouseMember.firstName) : null;
+      }
+    } else if(spouseMode === "new"){
+      directSpouseName = document.getElementById("directSpouseNewName").value.trim() || null;
+    }
+
+    const newRef = await addDoc(collection(db, "members"), {
       parentId: directParentId,
       familyId: directFamilyId,
       firstName: directFirstName,
       fullName: directFullName,
       gender: document.getElementById("directGender").value || null,
       status: document.getElementById("directStatus").value,
-      spouseName: document.getElementById("directSpouse").value.trim() || null,
+      spouseId: directSpouseId,
+      spouseName: directSpouseName,
       birthYear: document.getElementById("directBirthYear").value.trim() || null,
       deathYear: document.getElementById("directDeathYear").value.trim() || null,
       bio: document.getElementById("directBio").value.trim() || null,
@@ -1403,9 +1495,19 @@ document.getElementById("directAddForm").addEventListener("submit", async (e)=>{
       createdAt: serverTimestamp(),
       approvedBy: auth.currentUser.email,
     });
+
+    if(directSpouseId){
+      await updateDoc(doc(db, "members", directSpouseId), {
+        spouseId: newRef.id,
+        spouseName: directFullName || directFirstName,
+      }).catch(()=>{});
+    }
+
     msgEl.innerHTML = `<div class="msg-ok">تمت الإضافة إلى الشجرة.</div>`;
     e.target.reset();
     document.getElementById("directDeathYearWrap").style.display = "none";
+    document.getElementById("directSpouseExistingWrap").style.display = "none";
+    document.getElementById("directSpouseNewWrap").style.display = "none";
 
     const parentMember = membersFlat.find(m => m.id === directParentId);
     await logActivity("direct_add",
