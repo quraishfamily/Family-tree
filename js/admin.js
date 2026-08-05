@@ -549,12 +549,15 @@ onSnapshot(collection(db, "pendingSubmissions"), (snap)=>{
     }
 
     if(item.type === "spouseLink"){
+      const spouseLabel = item.spouseMemberId
+        ? escapeHtml(item.spouseMemberFirstName || "—")
+        : `${escapeHtml(item.spouseFreeText || "—")} <span style="color:var(--muted);">(غير مسجّل بالشجرة)</span>`;
       const card = document.createElement("div");
       card.className = "card";
       card.innerHTML = `
         <div class="card-head">
           <div>
-            <h4>ربط زواج: ${escapeHtml(item.targetMemberFirstName || "—")} ↔ ${escapeHtml(item.spouseMemberFirstName || "—")}</h4>
+            <h4>ربط زواج: ${escapeHtml(item.targetMemberFirstName || "—")} ↔ ${spouseLabel}</h4>
             <div class="card-meta">العائلة: ${escapeHtml(familyLabel(item.familyId))}</div>
           </div>
           <div class="card-meta">
@@ -714,22 +717,35 @@ onSnapshot(collection(db, "pendingSubmissions"), (snap)=>{
       btn.disabled = true; btn.textContent = "جارٍ الربط...";
       try{
         const target = membersFlat.find(m => m.id === item.targetMemberId);
-        const spouse = membersFlat.find(m => m.id === item.spouseMemberId);
-        if(!target || !spouse){
-          throw new Error("أحد الشخصين لم يعد موجوداً في الشجرة.");
+        if(!target){
+          throw new Error("الشخص المستهدف لم يعد موجوداً في الشجرة.");
         }
-        await updateDoc(doc(db, "members", item.targetMemberId), {
-          spouseId: item.spouseMemberId,
-          spouseName: spouse.fullName || spouse.firstName,
-        });
-        await updateDoc(doc(db, "members", item.spouseMemberId), {
-          spouseId: item.targetMemberId,
-          spouseName: target.fullName || target.firstName,
-        });
-        await deleteDoc(doc(db, "pendingSubmissions", id));
-        await logActivity("spouse_link",
-          `وافق على ربط "${target.fullName || target.firstName}" و"${spouse.fullName || spouse.firstName}" كزوجين`
-        );
+        if(item.spouseMemberId){
+          const spouse = membersFlat.find(m => m.id === item.spouseMemberId);
+          if(!spouse){
+            throw new Error("الزوج/الزوجة المختار لم يعد موجوداً في الشجرة.");
+          }
+          await updateDoc(doc(db, "members", item.targetMemberId), {
+            spouseId: item.spouseMemberId,
+            spouseName: spouse.fullName || spouse.firstName,
+          });
+          await updateDoc(doc(db, "members", item.spouseMemberId), {
+            spouseId: item.targetMemberId,
+            spouseName: target.fullName || target.firstName,
+          });
+          await deleteDoc(doc(db, "pendingSubmissions", id));
+          await logActivity("spouse_link",
+            `وافق على ربط "${target.fullName || target.firstName}" و"${spouse.fullName || spouse.firstName}" كزوجين`
+          );
+        } else {
+          await updateDoc(doc(db, "members", item.targetMemberId), {
+            spouseName: item.spouseFreeText,
+          });
+          await deleteDoc(doc(db, "pendingSubmissions", id));
+          await logActivity("spouse_link",
+            `وافق على تسجيل "${item.spouseFreeText}" كزوج/زوجة لـ "${target.fullName || target.firstName}" (غير مسجّل بالشجرة)`
+          );
+        }
       }catch(err){
         alert("حدث خطأ: " + err.message);
         btn.disabled = false; btn.textContent = "قبول ونشر الربط";
