@@ -333,12 +333,22 @@ document.getElementById("collapseAllBtn").addEventListener("click", ()=>{
 /* ---------------- تفاصيل الشخص ---------------- */
 let addChildRedirectTarget = null; // لو الشخص أنثى ولها زوج بنفس العائلة، نوجّه "إضافة ابن/ابنة" لزوجها
 
+function getSpousesArray(member){
+  if(Array.isArray(member.spouses)) return member.spouses;
+  if(member.spouseId || member.spouseName) return [{ id: member.spouseId || null, name: member.spouseName || "" }];
+  return [];
+}
+
 function findFamilySpouse(member){
-  if(!member.spouseId) return null;
-  const spouse = allMembersFlat.find(m => m.id === member.spouseId);
-  if(!spouse) return null;
-  if(member.familyId && spouse.familyId !== member.familyId) return null;
-  return spouse;
+  const spouses = getSpousesArray(member);
+  for(const s of spouses){
+    if(!s.id) continue;
+    const spouse = allMembersFlat.find(m => m.id === s.id);
+    if(spouse && spouse.gender === "male" && (!member.familyId || spouse.familyId === member.familyId)){
+      return spouse;
+    }
+  }
+  return null;
 }
 
 function showDetail(member){
@@ -375,9 +385,11 @@ function showDetail(member){
     bioEl.style.display = "none";
   }
   const spouseRow = document.getElementById("detailSpouseRow");
-  if(member.spouseName){
+  const spouses = getSpousesArray(member);
+  if(spouses.length > 0){
     spouseRow.style.display = "flex";
-    document.getElementById("detailSpouse").textContent = member.spouseName;
+    document.getElementById("detailSpouseRowLabel").textContent = spouses.length > 1 ? "الأزواج/الزوجات" : "الزوج/الزوجة";
+    document.getElementById("detailSpouse").textContent = spouses.map(s => s.name).filter(Boolean).join("، ");
   } else {
     spouseRow.style.display = "none";
   }
@@ -487,7 +499,7 @@ document.getElementById("correctionForm").addEventListener("submit", async (e)=>
 document.getElementById("openLinkSpouseBtn").addEventListener("click", ()=>{
   ensureIdentity(()=>{
     closeOverlay("detailOverlay");
-    document.getElementById("linkSpouseHint").textContent = `ربط زوج/زوجة لـ: ${currentDetailMember.firstName}`;
+    document.getElementById("linkSpouseHint").textContent = `إضافة زوج/زوجة لـ: ${currentDetailMember.firstName}`;
     document.getElementById("linkSpouseMode").value = "existing";
     document.getElementById("linkSpouseExistingWrap").style.display = "block";
     document.getElementById("linkSpouseNewWrap").style.display = "none";
@@ -495,8 +507,10 @@ document.getElementById("openLinkSpouseBtn").addEventListener("click", ()=>{
 
     const oppositeGender = currentDetailMember.gender === "male" ? "female"
       : currentDetailMember.gender === "female" ? "male" : null;
+    const existingSpouseIds = getSpousesArray(currentDetailMember).map(s => s.id).filter(Boolean);
     const candidates = allMembersFlat.filter(m =>
       m.id !== currentDetailMember.id &&
+      !existingSpouseIds.includes(m.id) &&
       (!oppositeGender || m.gender === oppositeGender)
     );
     const sel = document.getElementById("linkSpousePerson");
