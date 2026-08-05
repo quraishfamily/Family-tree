@@ -77,7 +77,7 @@
       <div class="detail-row"><span>الحالة</span><span id="detailStatus">—</span></div>
       <div class="detail-row" id="detailBirthYearRow"><span>سنة الميلاد</span><span id="detailBirthYear">—</span></div>
       <div class="detail-row" id="detailDeathYearRow"><span>سنة الوفاة</span><span id="detailDeathYear">—</span></div>
-      <div class="detail-row" id="detailSpouseRow"><span>الزوج/الزوجة</span><span id="detailSpouse">—</span></div>
+      <div class="detail-row" id="detailSpouseRow"><span id="detailSpouseRowLabel">الزوج/الزوجة</span><span id="detailSpouse">—</span></div>
       <div class="detail-row" id="detailAddedByRow"><span>أُضيف بواسطة</span><span id="detailAddedBy">—</span></div>
       <p class="hint" id="detailBioText" style="display:none;color:var(--ivory);background:var(--navy-panel-2);padding:10px;border-radius:8px;margin-top:10px;"></p>
       <p class="hint" id="lineageStopNote" style="display:none;color:#f0a89f;background:rgba(193,85,74,.1);padding:10px;border-radius:8px;margin-top:10px;">
@@ -89,7 +89,7 @@
         <button class="btn" id="openAddFatherBtn">إضافة أب</button>
       </div>
       <div class="form-actions" id="linkSpouseWrap" style="display:none;">
-        <button class="btn btn-ghost" id="openLinkSpouseBtn" style="width:100%;">ربط الزوج / الزوجة</button>
+        <button class="btn btn-ghost" id="openLinkSpouseBtn" style="width:100%;">إضافة زوج / زوجة</button>
       </div>
       <div class="form-actions">
         <button class="btn btn-ghost" id="openChainBtn" style="width:100%;">ربط قريب عبر جد مشترك (سلسلة كاملة)</button>
@@ -327,8 +327,8 @@
   <div class="overlay hidden" id="linkSpouseOverlay">
     <div class="modal">
       <button class="close" data-close="linkSpouseOverlay">×</button>
-      <h3>ربط الزوج / الزوجة</h3>
-      <p class="hint" id="linkSpouseHint">ربط زوج/زوجة لـ: —</p>
+      <h3>إضافة زوج / زوجة</h3>
+      <p class="hint" id="linkSpouseHint">إضافة زوج/زوجة لـ: —</p>
       <form id="linkSpouseForm">
         <div class="field">
           <label>هل هو/هي مسجّل بالشجرة؟</label>
