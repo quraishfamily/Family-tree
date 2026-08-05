@@ -88,6 +88,26 @@
     flex-wrap:wrap;
   }
   .log-entry .log-summary{ color:var(--ivory); line-height:1.8; }
+  .spouse-chip{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    background:var(--navy-deep);
+    border:1px solid var(--navy-line);
+    border-radius:8px;
+    padding:8px 10px;
+    margin-bottom:6px;
+    font-size:13.5px;
+  }
+  .spouse-chip button{
+    background:none;
+    border:none;
+    color:var(--danger);
+    font-size:16px;
+    font-weight:700;
+    padding:0 4px;
+  }
+  .spouse-empty{ color:var(--muted); font-size:13px; }
 </style>
 </head>
 <body>
@@ -203,20 +223,25 @@
             <textarea id="directBio" rows="2" style="width:100%;background:var(--navy-deep);border:1px solid var(--navy-line);color:var(--ivory);border-radius:8px;padding:10px 12px;font-family:inherit;font-size:14px;"></textarea>
           </div>
           <div class="field">
-            <label>هل الزوج/الزوجة مسجّل بالشجرة؟ (اختياري)</label>
-            <select id="directSpouseMode">
-              <option value="none">بدون</option>
-              <option value="existing">نعم، اختره من القائمة</option>
-              <option value="new">لا، أدخل الاسم يدوياً</option>
+            <label>الأزواج/الزوجات (اختياري)</label>
+            <div id="directSpousesList" style="margin-bottom:6px;"></div>
+          </div>
+          <div class="field">
+            <label>إضافة زوج/زوجة</label>
+            <select id="directNewSpouseMode">
+              <option value="">— لا تضف حالياً —</option>
+              <option value="existing">من أفراد الشجرة</option>
+              <option value="new">اسم يدوي (غير مسجّل بالشجرة)</option>
             </select>
           </div>
-          <div class="field" id="directSpouseExistingWrap" style="display:none;">
-            <label>اختر من أفراد الشجرة</label>
-            <select id="directSpousePerson"></select>
+          <div class="field" id="directNewSpouseExistingWrap" style="display:none;">
+            <select id="directNewSpousePerson"></select>
           </div>
-          <div class="field" id="directSpouseNewWrap" style="display:none;">
-            <label>اسم الزوج/الزوجة</label>
-            <input type="text" id="directSpouseNewName" placeholder="مثال: نورة سعيد آل فلان">
+          <div class="field" id="directNewSpouseNewWrap" style="display:none;">
+            <input type="text" id="directNewSpouseNewName" placeholder="مثال: نورة سعيد آل فلان">
+          </div>
+          <div class="field" id="directAddSpouseBtnWrap" style="display:none;">
+            <button type="button" class="btn" id="directAddSpouseBtn" style="width:100%;">+ إضافة إلى القائمة</button>
           </div>
           <div class="field" id="photoFieldWrap" style="display:none;"><label>صورة (اختياري)</label><input type="file" id="directPhoto" accept="image/*"></div>
           <p class="card-meta" id="photoDisabledNote">📷 رفع الصور غير مفعّل حالياً، بيتم تفعيله لاحقاً بعد ترقية خطة Firebase.</p>
@@ -285,19 +310,25 @@
           <textarea id="editBio" rows="2" style="width:100%;background:var(--navy-deep);border:1px solid var(--navy-line);color:var(--ivory);border-radius:8px;padding:10px 12px;font-family:inherit;font-size:14px;"></textarea>
         </div>
         <div class="field">
-          <label>هل الزوج/الزوجة مسجّل بالشجرة؟</label>
-          <select id="editSpouseMode">
-            <option value="existing">نعم، اختره من القائمة</option>
-            <option value="new">لا، أدخل الاسم يدوياً</option>
+          <label>الأزواج/الزوجات الحاليون</label>
+          <div id="editSpousesList" style="margin-bottom:6px;"></div>
+        </div>
+        <div class="field">
+          <label>إضافة زوج/زوجة جديد (اختياري)</label>
+          <select id="editNewSpouseMode">
+            <option value="">— لا تضف حالياً —</option>
+            <option value="existing">من أفراد الشجرة</option>
+            <option value="new">اسم يدوي (غير مسجّل بالشجرة)</option>
           </select>
         </div>
-        <div class="field" id="editSpouseExistingWrap">
-          <label>اختر من أفراد الشجرة</label>
-          <select id="editSpousePerson"></select>
+        <div class="field" id="editNewSpouseExistingWrap" style="display:none;">
+          <select id="editNewSpousePerson"></select>
         </div>
-        <div class="field" id="editSpouseNewWrap" style="display:none;">
-          <label>اسم الزوج/الزوجة</label>
-          <input type="text" id="editSpouseNewName" placeholder="مثال: نورة سعيد آل فلان">
+        <div class="field" id="editNewSpouseNewWrap" style="display:none;">
+          <input type="text" id="editNewSpouseNewName" placeholder="مثال: نورة سعيد آل فلان">
+        </div>
+        <div class="field" id="editAddSpouseBtnWrap" style="display:none;">
+          <button type="button" class="btn" id="editAddSpouseBtn" style="width:100%;">+ إضافة إلى القائمة</button>
         </div>
         <div class="field">
           <label>الأب/الأم في الشجرة</label>
